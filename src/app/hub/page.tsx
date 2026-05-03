@@ -624,17 +624,28 @@ export default function HubPage() {
                                   const scoreObj = m.rawScores?.find((s: any) => s.player_id === p.player_id && s.hole_number === i + 1);
                                   const course = COURSES.find(c => c.id === m.match.course_id);
                                   const par = course?.holes[i].par || 4;
-                                  let style = "text-slate-600";
-                                  let bg = "";
+                                  let textStyle = "text-slate-300 font-medium";
+                                  let bgStyle = "w-6 h-6 flex items-center justify-center mx-auto";
+                                  
                                   if (scoreObj) {
-                                    if (scoreObj.strokes < par) { style = "text-yellow-500 font-black"; bg = "bg-yellow-500/10"; }
-                                    else if (scoreObj.strokes === par) { style = "text-slate-300 font-medium"; }
-                                    else { style = "text-red-400 font-medium"; }
+                                    if (scoreObj.strokes < par) { 
+                                       textStyle = "text-slate-100 font-bold";
+                                       bgStyle = "border border-slate-400 rounded-full w-6 h-6 flex items-center justify-center mx-auto";
+                                    } else if (scoreObj.strokes > par) { 
+                                       textStyle = "text-slate-100 font-bold";
+                                       bgStyle = "border border-slate-500 rounded-md w-6 h-6 flex items-center justify-center mx-auto";
+                                    }
                                   }
                                   
+                                  const isWinner = m.holeWinners?.[i + 1]?.includes(p.player_id);
+                                  
                                   return (
-                                    <td key={i} className={`p-3 border-slate-700/50 border-r ${style} ${bg}`}>
-                                      {scoreObj ? scoreObj.strokes : '-'}
+                                    <td key={i} className={`p-1 border-slate-700/50 border-r ${isWinner ? 'bg-neon/10 shadow-[inset_0_0_8px_rgba(var(--color-neon),0.2)]' : ''}`}>
+                                      <div className={bgStyle}>
+                                        <span className={isWinner ? 'text-neon font-black drop-shadow-md' : textStyle}>
+                                          {scoreObj ? scoreObj.strokes : '-'}
+                                        </span>
+                                      </div>
                                     </td>
                                   );
                                 })}

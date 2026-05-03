@@ -66,6 +66,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       bestBallTotals[teamB_id] = 0;
     }
 
+    const holeWinners: Record<number, string[]> = {};
     // Process each hole 1 to 18
     for (let h = 1; h <= 18; h++) {
       const hScores = scoresByHole[h];
@@ -98,6 +99,10 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
              ninesTotals[pScores[1].id] += 3;
              ninesTotals[pScores[2].id] += 1;
            }
+
+           if (pScores[0].score < pScores[1].score) {
+             holeWinners[h] = [pScores[0].id];
+           }
         }
       } else if (match.format === '2v1') {
         // Need scores for both teams to calculate best ball
@@ -109,8 +114,10 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
            const tA_best = Math.min(...tA_scores);
            if (tA_best < tB_score) {
              bestBallTotals[teamA_id] += 1;
+             holeWinners[h] = teamA_players.filter(pid => hScores[pid] === tA_best);
            } else if (tB_score < tA_best) {
              bestBallTotals[teamB_id] += 1;
+             holeWinners[h] = teamB_players.filter(pid => hScores[pid] === tB_score);
            }
            // Ties result in no holes won for either team
         }
@@ -182,7 +189,8 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       teamA_id,
       teamB_id,
       isMatchComplete,
-      rawScores: mScores
+      rawScores: mScores,
+      holeWinners
     };
   });
 
