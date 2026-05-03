@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type Player = {
   id: string;
@@ -16,8 +17,15 @@ interface AppState {
   logout: () => void;
 }
 
-export const useStore = create<AppState>((set) => ({
-  currentPlayer: null,
-  setCurrentPlayer: (player) => set({ currentPlayer: player }),
-  logout: () => set({ currentPlayer: null }),
-}));
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      currentPlayer: null,
+      setCurrentPlayer: (player) => set({ currentPlayer: player }),
+      logout: () => set({ currentPlayer: null }),
+    }),
+    {
+      name: 'golf-hub-storage',
+    }
+  )
+);
