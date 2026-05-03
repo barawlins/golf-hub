@@ -195,7 +195,9 @@ export default function HubPage() {
     if (!currentPlayer?.team_id) return;
     // Undrafted
     const { data: undrafted } = await supabase.from('players').select('*').is('team_id', null).order('name');
-    if (undrafted) setUndraftedPlayers(undrafted);
+    if (undrafted) {
+      setUndraftedPlayers(undrafted.filter((p: any) => !p.name.toLowerCase().includes('spectator')));
+    }
     
     // My Roster
     const { data: roster } = await supabase.from('players').select('*').eq('team_id', currentPlayer.team_id).order('name');
