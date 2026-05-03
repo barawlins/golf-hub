@@ -181,7 +181,8 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       bestBallTotals,
       teamA_id,
       teamB_id,
-      isMatchComplete
+      isMatchComplete,
+      rawScores: mScores
     };
   });
 

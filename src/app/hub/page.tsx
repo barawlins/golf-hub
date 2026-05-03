@@ -27,6 +27,7 @@ export default function HubPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [completedMatches, setCompletedMatches] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
 
   // Matchup Creator State
   const [matchFormat, setMatchFormat] = useState<'2v1' | 'nines'>('nines');
@@ -578,6 +579,72 @@ export default function HubPage() {
                         </div>
                       ))}
                     </div>
+
+                    <button 
+                      onClick={() => setExpandedMatchId(expandedMatchId === m.match.id ? null : m.match.id)}
+                      className="w-full mt-4 py-2.5 bg-slate-700/30 hover:bg-slate-700/60 text-xs font-bold text-slate-300 rounded-xl transition-all border border-slate-700/50 uppercase tracking-widest relative z-10"
+                    >
+                      {expandedMatchId === m.match.id ? 'Hide Full Scorecard' : 'View Full Scorecard'}
+                    </button>
+
+                    {expandedMatchId === m.match.id && (
+                      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-700 relative z-10 pb-2">
+                        <table className="w-full text-xs text-center border-collapse min-w-[600px]">
+                          <thead>
+                            <tr className="bg-slate-900 text-slate-400 border-b border-slate-700">
+                              <th className="p-3 text-left sticky left-0 bg-slate-900 border-r border-slate-700 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Hole</th>
+                              {[...Array(18)].map((_, i) => (
+                                <th key={i} className="p-3 border-slate-800 border-r text-slate-500 font-bold">{i + 1}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Course Par Row */}
+                            <tr className="bg-slate-800/80 text-slate-500 border-b border-slate-700">
+                              <td className="p-2 text-left font-medium sticky left-0 bg-slate-800/80 border-r border-slate-700 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Par</td>
+                              {[...Array(18)].map((_, i) => {
+                                const course = COURSES.find(c => c.id === m.match.course_id);
+                                return <td key={i} className="p-2 border-slate-700/50 border-r">{course?.holes[i].par}</td>;
+                              })}
+                            </tr>
+                            {/* Player Rows */}
+                            {m.participants.map((p: any) => (
+                              <tr key={p.player_id} className="border-b border-slate-700/50 bg-slate-800 hover:bg-slate-700/30 transition-colors">
+                                <td className="p-2 pl-3 text-left font-bold sticky left-0 bg-slate-800 border-r border-slate-700 whitespace-nowrap z-20 shadow-[2px_0_5px_rgba(0,0,0,0.5)]">
+                                  <div className="flex items-center gap-2">
+                                    {p.teamLogo ? (
+                                      <img src={p.teamLogo} alt="" className="w-4 h-4 rounded-full object-cover border" style={{ borderColor: p.teamColor }} />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
+                                    )}
+                                    <span style={{ color: p.teamColor }}>{p.players?.name?.split(' ')[0] || 'Unknown'}</span>
+                                  </div>
+                                </td>
+                                {[...Array(18)].map((_, i) => {
+                                  const scoreObj = m.rawScores?.find((s: any) => s.player_id === p.player_id && s.hole_number === i + 1);
+                                  const course = COURSES.find(c => c.id === m.match.course_id);
+                                  const par = course?.holes[i].par || 4;
+                                  let style = "text-slate-600";
+                                  let bg = "";
+                                  if (scoreObj) {
+                                    if (scoreObj.strokes < par) { style = "text-yellow-500 font-black"; bg = "bg-yellow-500/10"; }
+                                    else if (scoreObj.strokes === par) { style = "text-slate-300 font-medium"; }
+                                    else { style = "text-red-400 font-medium"; }
+                                  }
+                                  
+                                  return (
+                                    <td key={i} className={`p-3 border-slate-700/50 border-r ${style} ${bg}`}>
+                                      {scoreObj ? scoreObj.strokes : '-'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     {currentPlayer.role === 'commissioner' && m.isMatchComplete && (
                       <div className="mt-4 pt-3 border-t border-slate-700 text-center animate-in fade-in zoom-in duration-300">
                          <button 
