@@ -41,12 +41,17 @@ export default function HubPage() {
   const [currentHole, setCurrentHole] = useState(1);
   const [strokes, setStrokes] = useState<number | ''>('');
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (!currentPlayer) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !currentPlayer) {
       router.push("/");
     }
-  }, [currentPlayer, router]);
+  }, [isMounted, currentPlayer, router]);
 
   useEffect(() => {
     async function loadAdminData() {
@@ -444,7 +449,7 @@ export default function HubPage() {
     setIsSaving(false);
   };
 
-  if (!currentPlayer) return null;
+  if (!isMounted || !currentPlayer) return null;
 
   // Determine active course data
   const activeCourse = activeMatch ? COURSES.find(c => c.id === activeMatch.course_id) || COURSES[0] : null;
@@ -488,29 +493,29 @@ export default function HubPage() {
 
       <main className="p-6 max-w-md mx-auto w-full space-y-8 pb-24">
         
-        <div className="flex bg-slate-800 p-1 rounded-xl shadow-inner">
+        <div className="flex bg-slate-800 p-1.5 rounded-xl shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] overflow-x-auto no-scrollbar gap-1 relative z-20">
           <button 
             onClick={() => setActiveTab("leaderboard")}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider ${activeTab === "leaderboard" ? "bg-slate-700 text-white shadow-md" : "text-slate-400 hover:text-slate-200"}`}
+            className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "leaderboard" ? "bg-slate-700 text-white shadow-md border border-slate-600/50" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
           >
             Standings
           </button>
           <button 
             onClick={() => setActiveTab("scorecard")}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider ${activeTab === "scorecard" ? "bg-slate-700 text-neon shadow-md" : "text-slate-400 hover:text-slate-200"}`}
+            className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "scorecard" ? "bg-slate-700 text-neon shadow-md border border-neon/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
           >
             Scorecard
           </button>
           <button 
             onClick={() => setActiveTab("rosters")}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider ${activeTab === "rosters" ? "bg-slate-700 text-blue-400 shadow-md" : "text-slate-400 hover:text-slate-200"}`}
+            className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "rosters" ? "bg-slate-700 text-blue-400 shadow-md border border-blue-400/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
           >
             Rosters
           </button>
           {currentPlayer.role === 'commissioner' && (
             <button 
               onClick={() => setActiveTab("admin")}
-              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider ${activeTab === "admin" ? "bg-slate-700 text-yellow-500 shadow-md" : "text-slate-400 hover:text-slate-200"}`}
+              className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "admin" ? "bg-slate-700 text-yellow-500 shadow-md border border-yellow-500/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
             >
               Admin
             </button>
