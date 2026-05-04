@@ -7,6 +7,26 @@ import { supabase } from "@/lib/supabase";
 import { COURSES } from "@/lib/courseData";
 import { calculateLeaderboard, TeamStanding } from "@/lib/scoringEngine";
 
+function boostColor(hex: string) {
+  if (!hex) return '#ffffff';
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  
+  if (brightness < 160) {
+     const boost = 160 - brightness;
+     r = Math.min(255, Math.floor(r + boost));
+     g = Math.min(255, Math.floor(g + boost));
+     b = Math.min(255, Math.floor(b + boost));
+  }
+  
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
 export default function HubPage() {
   const { currentPlayer, logout } = useStore();
   const router = useRouter();
@@ -545,7 +565,7 @@ export default function HubPage() {
                             {team.name.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <p className="font-bold text-lg" style={{ color: team.color }}>{team.name}</p>
+                        <p className="font-bold text-lg" style={{ color: boostColor(team.color) }}>{team.name}</p>
                       </div>
                       <span className="text-xl font-black text-neon">{team.points} <span className="text-[10px] text-slate-500 uppercase tracking-widest">PTS</span></span>
                     </div>
@@ -573,7 +593,7 @@ export default function HubPage() {
                     
                     <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-3 relative z-10">
                       <span className="text-xs text-slate-400 font-bold uppercase">{m.format === 'nines' ? 'Nines (5-3-1)' : '2v1 Best Ball'}</span>
-                      <span className="text-xs font-black uppercase tracking-wide" style={{ color: m.leaderColor }}>{m.leaderText}</span>
+                      <span className="text-xs font-black uppercase tracking-wide" style={{ color: boostColor(m.leaderColor) }}>{m.leaderText}</span>
                     </div>
                     <div className="space-y-2 relative z-10">
                       {m.participants.map((p: any) => (
@@ -630,7 +650,7 @@ export default function HubPage() {
                                     ) : (
                                       <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
                                     )}
-                                    <span style={{ color: p.teamColor }}>{p.players?.name?.split(' ')[0] || 'Unknown'}</span>
+                                    <span style={{ color: boostColor(p.teamColor) }}>{p.players?.name?.split(' ')[0] || 'Unknown'}</span>
                                   </div>
                                 </td>
                                 {[...Array(18)].map((_, i) => {
@@ -991,7 +1011,7 @@ export default function HubPage() {
                     </div>
                   )}
                   <div>
-                    <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: team.color }}>{team.name}</h3>
+                    <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: boostColor(team.color) }}>{team.name}</h3>
                     <p className="text-xs font-bold text-slate-400">Team Roster</p>
                   </div>
                 </div>
