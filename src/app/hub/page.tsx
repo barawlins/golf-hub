@@ -10,7 +10,7 @@ import { calculateLeaderboard, TeamStanding } from "@/lib/scoringEngine";
 export default function HubPage() {
   const { currentPlayer, logout } = useStore();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("leaderboard");
+  const [activeTab, setActiveTab] = useState<"leaderboard" | "scorecard" | "admin" | "rosters">("leaderboard");
 
   // Leaderboard State
   const [standings, setStandings] = useState<TeamStanding[]>([]);
@@ -501,6 +501,12 @@ export default function HubPage() {
           >
             Scorecard
           </button>
+          <button 
+            onClick={() => setActiveTab("rosters")}
+            className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all uppercase tracking-wider ${activeTab === "rosters" ? "bg-slate-700 text-blue-400 shadow-md" : "text-slate-400 hover:text-slate-200"}`}
+          >
+            Rosters
+          </button>
           {currentPlayer.role === 'commissioner' && (
             <button 
               onClick={() => setActiveTab("admin")}
@@ -962,6 +968,58 @@ export default function HubPage() {
                   </div>
                 </div>
               )}
+          </section>
+        )}
+
+        {activeTab === "rosters" && (
+          <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {standings.map(team => (
+              <div key={team.id} className="bg-slate-800/50 border border-slate-700 rounded-3xl p-6 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundColor: team.color }}></div>
+                
+                <div className="flex items-center gap-4 border-b border-slate-700/50 pb-4 mb-4 relative z-10">
+                  {team.logo ? (
+                    <img src={team.logo} alt={team.name} className="w-12 h-12 rounded-xl object-cover border-2 shadow-lg" style={{ borderColor: team.color }} />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shadow-lg" style={{ backgroundColor: team.color, color: '#1e293b' }}>
+                      {team.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tight" style={{ color: team.color }}>{team.name}</h3>
+                    <p className="text-xs font-bold text-slate-400">Team Roster</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 relative z-10">
+                  {allPlayers.filter(p => p.team_id === team.id).map(player => (
+                    <div key={player.id} className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+                      {player.photo_url ? (
+                        <img src={player.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border" style={{ borderColor: team.color }} />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 text-xs font-bold text-slate-400 border border-slate-700">
+                          {player.name.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-sm text-slate-200">{player.name}</p>
+                        {player.role === 'commissioner' && (
+                          <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mt-0.5">Captain</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {allPlayers.filter(p => p.team_id === team.id).length === 0 && (
+                     <p className="text-sm text-slate-500 italic text-center py-2">No players drafted yet.</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            {standings.length === 0 && (
+              <div className="text-center p-8 text-slate-500 font-medium bg-slate-800 rounded-2xl border border-slate-700">
+                 No teams found.
+              </div>
+            )}
           </section>
         )}
       </main>
