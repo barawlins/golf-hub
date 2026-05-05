@@ -100,8 +100,11 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
              ninesTotals[pScores[2].id] += 1;
            }
 
-           if (pScores[0].score < pScores[1].score) {
-             holeWinners[h] = [pScores[0].id];
+           const minScore = pScores[0].score;
+           const winners = pScores.filter(ps => ps.score === minScore).map(ps => ps.id);
+           // Highlight if 1 or 2 players tied for low, but not if all 3 tied (push)
+           if (winners.length < 3) {
+             holeWinners[h] = winners;
            }
         }
       } else if (match.format === '2v1') {

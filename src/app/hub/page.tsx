@@ -129,6 +129,12 @@ export default function HubPage() {
         // Re-sort
         results.standings.sort((a,b) => b.points - a.points);
 
+        // Fetch all drafted players for Rosters tab (so it loads for non-commissioners too)
+        const { data: playersList } = await supabase.from('players').select('*, teams(name)').not('team_id', 'is', null).order('name');
+        if (playersList) {
+          setAllPlayers(playersList);
+        }
+
         setStandings(results.standings);
         setMatchResults(results.matchDetails);
       }
