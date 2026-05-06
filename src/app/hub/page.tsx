@@ -28,7 +28,7 @@ function boostColor(hex: string) {
 }
 
 export default function HubPage() {
-  const { currentPlayer, logout } = useStore();
+  const { currentPlayer, setCurrentPlayer, logout } = useStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"leaderboard" | "scorecard" | "admin" | "rosters">("leaderboard");
 
@@ -276,6 +276,32 @@ export default function HubPage() {
     setIsUploading(false);
   };
 
+  const handleSelfPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentPlayer || !e.target.files || e.target.files.length === 0) return;
+    setIsUploading(true);
+    const url = await uploadImage(e.target.files[0], `player-${currentPlayer.id}`);
+    if (url) {
+      const { error: dbError } = await supabase.from('players').update({ photo_url: url }).eq('id', currentPlayer.id);
+      if (dbError) {
+        alert("Photo uploaded, but failed to save to database: " + dbError.message);
+      } else {
+        // Update local store so the header refreshes instantly
+        setCurrentPlayer({ ...currentPlayer, photo_url: url });
+        
+        // Update the rosters view instantly without re-fetching
+        setAllPlayers(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, photo_url: url } : p));
+        
+        setToast("Profile photo updated!");
+        setTimeout(() => setToast(null), 3000);
+        
+        if (currentPlayer.role === 'commissioner') {
+          fetchPlayerPools();
+        }
+      }
+    }
+    setIsUploading(false);
+  };
+
   const handleSaveStyling = async () => {
     if (!currentPlayer?.team_id) return;
     setIsSaving(true);
@@ -497,13 +523,37 @@ export default function HubPage() {
             <h1 className="text-3xl font-black tracking-tighter text-white">
               MC<span className="text-neon">XVI</span>
             </h1>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-300">{currentPlayer.name}</span>
-              {currentPlayer.role === 'commissioner' && (
-                <span className="bg-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-yellow-500/30">
-                  Admin
-                </span>
-              )}
+            <div className="mt-3 flex items-center gap-3">
+              {/* Profile Photo Uploader */}
+              <label className="relative group cursor-pointer w-10 h-10 rounded-full overflow-hidden border-2 border-slate-700 hover:border-neon transition-colors flex-shrink-0">
+                {currentPlayer.photo_url ? (
+                  <img src={currentPlayer.photo_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+                    {currentPlayer.name.charAt(0)}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <input type="file" accept="image/*" onChange={handleSelfPhotoChange} className="hidden" disabled={isUploading} />
+              </label>
+
+              <div>
+                <span className="text-sm font-black text-slate-200 block leading-tight">{currentPlayer.name}</span>
+                {currentPlayer.role === 'commissioner' ? (
+                  <span className="bg-yellow-500/10 text-yellow-500 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border border-yellow-500/20 inline-block mt-0.5">
+                    Admin
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
+                    Player
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right flex flex-col items-end gap-3">
