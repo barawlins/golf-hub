@@ -250,6 +250,52 @@ export const COURSES: Course[] = [
       }
     },
     {
+      id: "blue-white", name: "Blue/White", color: "#60a5fa",
+      holes: {
+        1:  { par: 4, yardage: 362 },
+        2:  { par: 4, yardage: 354 },
+        3:  { par: 5, yardage: 478 },
+        4:  { par: 4, yardage: 334 },
+        5:  { par: 3, yardage: 147 },
+        6:  { par: 4, yardage: 370 },
+        7:  { par: 4, yardage: 357 },
+        8:  { par: 5, yardage: 490 },
+        9:  { par: 3, yardage: 163 },
+        10: { par: 4, yardage: 363 },
+        11: { par: 5, yardage: 477 },
+        12: { par: 3, yardage: 154 },
+        13: { par: 4, yardage: 364 },
+        14: { par: 3, yardage: 163 },
+        15: { par: 4, yardage: 345 },
+        16: { par: 4, yardage: 417 },
+        17: { par: 4, yardage: 357 },
+        18: { par: 5, yardage: 467 },
+      }
+    },
+    {
+      id: "white-yellow", name: "White/Yellow", color: "#fbbf24",
+      holes: {
+        1:  { par: 4, yardage: 328 },
+        2:  { par: 4, yardage: 314 },
+        3:  { par: 5, yardage: 444 },
+        4:  { par: 4, yardage: 334 },
+        5:  { par: 3, yardage: 128 },
+        6:  { par: 4, yardage: 332 },
+        7:  { par: 4, yardage: 244 },
+        8:  { par: 5, yardage: 372 },
+        9:  { par: 3, yardage: 107 },
+        10: { par: 4, yardage: 330 },
+        11: { par: 5, yardage: 388 },
+        12: { par: 3, yardage: 138 },
+        13: { par: 4, yardage: 318 },
+        14: { par: 3, yardage: 146 },
+        15: { par: 4, yardage: 308 },
+        16: { par: 4, yardage: 350 },
+        17: { par: 4, yardage: 336 },
+        18: { par: 5, yardage: 439 },
+      }
+    },
+    {
       id: "yellow", name: "Yellow", color: "#eab308",
       holes: {
         1:  { par: 4, yardage: 294 },
