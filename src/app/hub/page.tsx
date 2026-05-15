@@ -459,6 +459,26 @@ export default function HubPage() {
     setIsSaving(false);
   };
 
+  const handleCancelMatch = async (matchId: string) => {
+    if (!confirm("Cancel this match? All scores will be permanently deleted.")) return;
+    setIsSaving(true);
+    try {
+      // Delete all scores for this match
+      await supabase.from('hole_scores').delete().eq('match_id', matchId);
+      // Delete all participants
+      await supabase.from('match_participants').delete().eq('match_id', matchId);
+      // Delete the match itself
+      await supabase.from('matches').delete().eq('id', matchId);
+      
+      alert("Match cancelled and deleted.");
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert("Error cancelling match.");
+    }
+    setIsSaving(false);
+  };
+
   const handleFinalizeMatch = async (matchId: string) => {
     if (!confirm("Are you sure you want to finalize this match and permanently award points?")) return;
     setIsSaving(true);
@@ -779,6 +799,18 @@ export default function HubPage() {
                          </button>
                       </div>
                     )}
+
+                    {currentPlayer.role === 'commissioner' && (
+                      <div className="mt-3 text-center">
+                        <button 
+                          onClick={() => handleCancelMatch(m.match.id)}
+                          disabled={isSaving}
+                          className="text-[10px] text-red-500/60 hover:text-red-500 font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                        >
+                          Cancel Match
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -838,11 +870,21 @@ export default function HubPage() {
                             {isMe && <span className="text-[9px] text-neon font-bold uppercase">You</span>}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3 bg-slate-900 rounded-full p-1 border border-slate-700">
-                          <button onClick={() => updatePlayerStroke(p.player_id, -1)} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">-</button>
-                          <span className="text-xl font-black w-7 text-center text-neon">{val === '' ? '-' : val}</span>
-                          <button onClick={() => updatePlayerStroke(p.player_id, 1)} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">+</button>
-                        </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={val === '' ? '' : val}
+                          placeholder="-"
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            setPlayerStrokes(prev => ({
+                              ...prev,
+                              [p.player_id]: raw === '' ? '' : Math.max(1, parseInt(raw))
+                            }));
+                          }}
+                          className="w-16 h-12 text-center text-2xl font-black text-neon bg-slate-900 border-2 border-slate-700 rounded-xl focus:border-neon focus:outline-none focus:ring-1 focus:ring-neon/50 transition-all placeholder:text-slate-600"
+                        />
                       </div>
                     );
                   })}
