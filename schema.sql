@@ -32,9 +32,13 @@ create table public.rounds (
 create table public.matches (
   id uuid primary key default uuid_generate_v4(),
   round_id uuid references public.rounds(id),
-  format text check (format in ('1v1', '2v1')) not null,
+  course_id text,
+  format text check (format in ('1v1', '2v1', 'nines')) not null,
   scoring_rule text check (scoring_rule in ('best_ball', 'aggregate', 'alternate_shot')),
   point_value float default 1,
+  points_1st float,
+  points_2nd float,
+  points_3rd float,
   status text check (status in ('pending', 'in_progress', 'completed')) default 'pending'
 );
 

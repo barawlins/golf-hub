@@ -58,8 +58,9 @@ export default function HubPage() {
 
   // Scorecard State
   const [activeMatch, setActiveMatch] = useState<any>(null);
+  const [matchParticipants, setMatchParticipants] = useState<any[]>([]);
   const [currentHole, setCurrentHole] = useState(1);
-  const [strokes, setStrokes] = useState<number | ''>('');
+  const [playerStrokes, setPlayerStrokes] = useState<Record<string, number | ''>>({});
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -104,7 +105,15 @@ export default function HubPage() {
       if (participant && participant.matches) {
         const matchData = participant.matches as any;
         setActiveMatch(matchData);
-        fetchExistingScore(matchData.id, 1);
+
+        // Fetch all participants in this match
+        const { data: mParts } = await supabase
+          .from('match_participants')
+          .select('player_id, players(name, photo_url), team_id, teams(color_hex)')
+          .eq('match_id', matchData.id);
+        if (mParts) setMatchParticipants(mParts);
+
+        fetchExistingScores(matchData.id, 1, mParts || []);
       }
     }
 
@@ -163,21 +172,19 @@ export default function HubPage() {
     }
   }, [currentPlayer]);
 
-  async function fetchExistingScore(matchId: string, hole: number) {
-    if (!currentPlayer) return;
+  async function fetchExistingScores(matchId: string, hole: number, participants: any[]) {
     const { data } = await supabase
       .from('hole_scores')
-      .select('strokes')
+      .select('player_id, strokes')
       .eq('match_id', matchId)
-      .eq('player_id', currentPlayer.id)
-      .eq('hole_number', hole)
-      .maybeSingle();
+      .eq('hole_number', hole);
       
-    if (data) {
-      setStrokes(data.strokes);
-    } else {
-      setStrokes(''); // Default to blank
-    }
+    const map: Record<string, number | ''> = {};
+    participants.forEach(p => {
+      const found = data?.find(s => s.player_id === p.player_id);
+      map[p.player_id] = found ? found.strokes : '';
+    });
+    setPlayerStrokes(map);
   }
 
   const handleHoleChange = (direction: 'next' | 'prev') => {
@@ -187,34 +194,50 @@ export default function HubPage() {
     
     setCurrentHole(newHole);
     if (activeMatch) {
-      fetchExistingScore(activeMatch.id, newHole);
+      fetchExistingScores(activeMatch.id, newHole, matchParticipants);
     }
   };
 
-  const submitScore = async () => {
+  const updatePlayerStroke = (playerId: string, delta: number) => {
+    setPlayerStrokes(prev => {
+      const current = prev[playerId];
+      if (current === '' && delta < 0) return prev;
+      const newVal = current === '' ? 1 : Math.max(1, current + delta);
+      return { ...prev, [playerId]: newVal };
+    });
+  };
+
+  const submitAllScores = async () => {
     if (!currentPlayer || !activeMatch) return;
-    if (strokes === '') {
-      alert("Please enter a score before submitting.");
+    
+    // Check that at least one score is entered
+    const entries = Object.entries(playerStrokes).filter(([, v]) => v !== '');
+    if (entries.length === 0) {
+      alert("Please enter at least one score before submitting.");
       return;
     }
 
     setIsSubmittingScore(true);
     
-    // We use upsert to insert or update the score
-    const { error } = await supabase.from('hole_scores').upsert({
+    const upserts = entries.map(([playerId, strokes]) => ({
       match_id: activeMatch.id,
-      player_id: currentPlayer.id,
+      player_id: playerId,
       hole_number: currentHole,
       strokes: strokes
-    }, { onConflict: 'match_id,player_id,hole_number' });
+    }));
+
+    const { error } = await supabase.from('hole_scores').upsert(
+      upserts,
+      { onConflict: 'match_id,player_id,hole_number' }
+    );
 
     setIsSubmittingScore(false);
     
     if (error) {
-      setToast("Network error. Score not saved.");
+      setToast("Network error. Scores not saved.");
       setTimeout(() => setToast(null), 3000);
     } else {
-      setToast("Score Saved!");
+      setToast(`Hole ${currentHole} Saved!`);
       setTimeout(() => setToast(null), 2000);
       if (currentHole < 18) {
         handleHoleChange('next');
@@ -788,25 +811,48 @@ export default function HubPage() {
                   <button onClick={() => handleHoleChange('next')} disabled={currentHole === 18} className="text-slate-500 hover:text-white disabled:opacity-30">Next ▶</button>
                 </div>
 
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-lg text-white">Your Score</h3>
-                      <p className="text-xs text-slate-400 mt-1">Strokes taken</p>
-                    </div>
-                    <div className="flex items-center space-x-4 bg-slate-900 rounded-full p-1 border border-slate-700">
-                      <button onClick={() => setStrokes(prev => prev === '' ? 1 : Math.max(1, prev - 1))} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xl font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">-</button>
-                      <span className="text-2xl font-black w-8 text-center text-neon">{strokes === '' ? '-' : strokes}</span>
-                      <button onClick={() => setStrokes(prev => prev === '' ? 1 : prev + 1)} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xl font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">+</button>
-                    </div>
-                  </div>
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+                  <h3 className="font-bold text-sm text-slate-400 uppercase tracking-widest">Enter Scores</h3>
+                  
+                  {matchParticipants.map(p => {
+                    const name = p.players?.name || 'Unknown';
+                    const firstName = name.split(' ')[0];
+                    const teamColor = p.teams?.color_hex || '#ffffff';
+                    const val = playerStrokes[p.player_id];
+                    const isMe = p.player_id === currentPlayer.id;
+                    
+                    return (
+                      <div key={p.player_id} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                        isMe ? 'bg-slate-700/40 border-neon/20' : 'bg-slate-900/50 border-slate-700/50'
+                      }`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {p.players?.photo_url ? (
+                            <img src={p.players.photo_url} alt="" className="w-8 h-8 rounded-full object-cover border-2 flex-shrink-0" style={{ borderColor: teamColor }} />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-slate-900 flex-shrink-0" style={{ backgroundColor: boostColor(teamColor) }}>
+                              {name.charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <span className="text-sm font-black block truncate" style={{ color: boostColor(teamColor) }}>{firstName}</span>
+                            {isMe && <span className="text-[9px] text-neon font-bold uppercase">You</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-slate-900 rounded-full p-1 border border-slate-700">
+                          <button onClick={() => updatePlayerStroke(p.player_id, -1)} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">-</button>
+                          <span className="text-xl font-black w-7 text-center text-neon">{val === '' ? '-' : val}</span>
+                          <button onClick={() => updatePlayerStroke(p.player_id, 1)} className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-lg font-bold text-white active:bg-slate-700 hover:bg-slate-700 transition-colors">+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
 
                   <button 
-                    onClick={submitScore}
+                    onClick={submitAllScores}
                     disabled={isSubmittingScore}
                     className="w-full py-4 bg-neon hover:bg-neon/90 text-slate-900 font-black text-lg rounded-xl transition-all shadow-[0_0_20px_rgba(var(--color-neon),0.3)] hover:shadow-[0_0_30px_rgba(var(--color-neon),0.5)] disabled:opacity-50"
                   >
-                    {isSubmittingScore ? "SAVING..." : "SUBMIT SCORE"}
+                    {isSubmittingScore ? "SAVING..." : `SUBMIT HOLE ${currentHole}`}
                   </button>
                 </div>
               </>
