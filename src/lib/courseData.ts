@@ -7,6 +7,8 @@ export type TeeBox = {
   id: string;
   name: string;
   color: string;     // CSS color for display
+  rating: number;    // Course rating (e.g. 73.3)
+  slope: number;     // Slope rating (e.g. 147)
   holes: Record<number, HoleInfo>;
   totalYardage: number;
 };
@@ -36,7 +38,7 @@ export const COURSES: Course[] = [
   // ═══════════════════════════════════════════════════
   buildCourse("The Bear", "The Bear", 72, [
     {
-      id: "black", name: "Black", color: "#1e293b",
+      id: "black", name: "Black", color: "#1e293b", rating: 76.1, slope: 150,
       holes: {
         1:  { par: 4, yardage: 393 },
         2:  { par: 4, yardage: 451 },
@@ -59,7 +61,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "blue", name: "Blue", color: "#3b82f6",
+      id: "blue", name: "Blue", color: "#3b82f6", rating: 73.3, slope: 147,
       holes: {
         1:  { par: 4, yardage: 364 },
         2:  { par: 4, yardage: 407 },
@@ -82,7 +84,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "blue-white", name: "Blue/White", color: "#60a5fa",
+      id: "blue-white", name: "Blue/White", color: "#60a5fa", rating: 72.0, slope: 144,
       holes: {
         1:  { par: 4, yardage: 364 },
         2:  { par: 4, yardage: 390 },
@@ -105,7 +107,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white", name: "White", color: "#e2e8f0",
+      id: "white", name: "White", color: "#e2e8f0", rating: 71.1, slope: 139,
       holes: {
         1:  { par: 4, yardage: 340 },
         2:  { par: 4, yardage: 390 },
@@ -128,7 +130,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white-yellow", name: "White/Yellow", color: "#fbbf24",
+      id: "white-yellow", name: "White/Yellow", color: "#fbbf24", rating: 69.2, slope: 134,
       holes: {
         1:  { par: 4, yardage: 340 },
         2:  { par: 4, yardage: 346 },
@@ -151,7 +153,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "yellow", name: "Yellow", color: "#eab308",
+      id: "yellow", name: "Yellow", color: "#eab308", rating: 67.0, slope: 128,
       holes: {
         1:  { par: 4, yardage: 301 },
         2:  { par: 4, yardage: 346 },
@@ -181,7 +183,7 @@ export const COURSES: Course[] = [
   // ═══════════════════════════════════════════════════
   buildCourse("The Wolverine", "The Wolverine", 72, [
     {
-      id: "black", name: "Black", color: "#1e293b",
+      id: "black", name: "Black", color: "#1e293b", rating: 74.5, slope: 140,
       holes: {
         1:  { par: 4, yardage: 406 },
         2:  { par: 4, yardage: 421 },
@@ -204,7 +206,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "blue", name: "Blue", color: "#3b82f6",
+      id: "blue", name: "Blue", color: "#3b82f6", rating: 71.8, slope: 138,
       holes: {
         1:  { par: 4, yardage: 362 },
         2:  { par: 4, yardage: 380 },
@@ -227,7 +229,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white", name: "White", color: "#e2e8f0",
+      id: "white", name: "White", color: "#e2e8f0", rating: 68.7, slope: 134,
       holes: {
         1:  { par: 4, yardage: 328 },
         2:  { par: 4, yardage: 354 },
@@ -250,7 +252,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "blue-white", name: "Blue/White", color: "#60a5fa",
+      id: "blue-white", name: "Blue/White", color: "#60a5fa", rating: 70.2, slope: 135,
       holes: {
         1:  { par: 4, yardage: 362 },
         2:  { par: 4, yardage: 354 },
@@ -273,7 +275,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white-yellow", name: "White/Yellow", color: "#fbbf24",
+      id: "white-yellow", name: "White/Yellow", color: "#fbbf24", rating: 66.1, slope: 126,
       holes: {
         1:  { par: 4, yardage: 328 },
         2:  { par: 4, yardage: 314 },
@@ -296,7 +298,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "yellow", name: "Yellow", color: "#eab308",
+      id: "yellow", name: "Yellow", color: "#eab308", rating: 64.1, slope: 116,
       holes: {
         1:  { par: 4, yardage: 294 },
         2:  { par: 4, yardage: 314 },
@@ -326,7 +328,7 @@ export const COURSES: Course[] = [
   // ═══════════════════════════════════════════════════
   buildCourse("Spruce Run", "Spruce Run", 70, [
     {
-      id: "blue", name: "Blue", color: "#3b82f6",
+      id: "blue", name: "Blue", color: "#3b82f6", rating: 71.2, slope: 136,
       holes: {
         1:  { par: 4, yardage: 362 },
         2:  { par: 5, yardage: 485 },
@@ -349,7 +351,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "blue-white", name: "Blue/White", color: "#60a5fa",
+      id: "blue-white", name: "Blue/White", color: "#60a5fa", rating: 69.5, slope: 135,
       holes: {
         1:  { par: 4, yardage: 345 },
         2:  { par: 5, yardage: 485 },
@@ -372,7 +374,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white", name: "White", color: "#e2e8f0",
+      id: "white", name: "White", color: "#e2e8f0", rating: 68.2, slope: 131,
       holes: {
         1:  { par: 4, yardage: 345 },
         2:  { par: 5, yardage: 443 },
@@ -395,7 +397,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "white-yellow", name: "White/Yellow", color: "#fbbf24",
+      id: "white-yellow", name: "White/Yellow", color: "#fbbf24", rating: 66.5, slope: 126,
       holes: {
         1:  { par: 4, yardage: 345 },
         2:  { par: 5, yardage: 443 },
@@ -418,7 +420,7 @@ export const COURSES: Course[] = [
       }
     },
     {
-      id: "yellow", name: "Yellow", color: "#eab308",
+      id: "yellow", name: "Yellow", color: "#eab308", rating: 63.4, slope: 113,
       holes: {
         1:  { par: 4, yardage: 263 },
         2:  { par: 5, yardage: 398 },

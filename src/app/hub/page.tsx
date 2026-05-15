@@ -1064,9 +1064,23 @@ export default function HubPage() {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all appearance-none"
                   >
                     {(COURSES.find(c => c.id === matchCourse)?.tees || []).map(t => (
-                      <option key={t.id} value={t.id}>{t.name} — {t.totalYardage} yds</option>
+                      <option key={t.id} value={t.id}>{t.name} — {t.totalYardage} yds | {t.rating}/{t.slope}</option>
                     ))}
                   </select>
+                  {(() => {
+                    const selectedTee = COURSES.find(c => c.id === matchCourse)?.tees.find(t => t.id === matchTee);
+                    if (!selectedTee) return null;
+                    return (
+                      <div className="flex justify-between items-center bg-slate-900/50 rounded-lg px-3 py-2 border border-slate-700/50">
+                        <span className="text-xs text-slate-400">
+                          <span className="font-bold text-slate-300">{selectedTee.totalYardage}</span> yards
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Rating <span className="font-bold text-slate-300">{selectedTee.rating}</span> · Slope <span className="font-bold text-slate-300">{selectedTee.slope}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-2">
