@@ -735,8 +735,8 @@ export default function HubPage() {
                             <tr className="bg-slate-800/80 text-slate-500 border-b border-slate-700">
                               <td className="p-2 text-left font-medium sticky left-0 bg-slate-800/80 border-r border-slate-700 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Par</td>
                               {[...Array(18)].map((_, i) => {
-                                const course = COURSES.find(c => c.id === m.match.course_id);
-                                return <td key={i} className="p-2 border-slate-700/50 border-r">{course?.holes[i].par}</td>;
+                                const course = COURSES.find(c => c.id === m.match.course_id) || COURSES[0];
+                                return <td key={i} className="p-2 border-slate-700/50 border-r">{course.holes[i]?.par ?? '-'}</td>;
                               })}
                             </tr>
                             {/* Player Rows */}
@@ -754,8 +754,8 @@ export default function HubPage() {
                                 </td>
                                 {[...Array(18)].map((_, i) => {
                                   const scoreObj = m.rawScores?.find((s: any) => s.player_id === p.player_id && s.hole_number === i + 1);
-                                  const course = COURSES.find(c => c.id === m.match.course_id);
-                                  const par = course?.holes[i].par || 4;
+                                  const course = COURSES.find(c => c.id === m.match.course_id) || COURSES[0];
+                                  const par = course.holes[i]?.par || 4;
                                   let textStyle = "text-slate-300 font-medium";
                                   let bgStyle = "w-6 h-6 flex items-center justify-center mx-auto";
                                   
