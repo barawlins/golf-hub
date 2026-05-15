@@ -35,6 +35,7 @@ export default function HubPage() {
   // Leaderboard State
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [playerPointsMap, setPlayerPointsMap] = useState<Record<string, number>>({});
 
   // Admin Panel State
   const [teamName, setTeamName] = useState("");
@@ -121,14 +122,20 @@ export default function HubPage() {
     async function fetchLeaderboardData() {
       const { data: teams } = await supabase.from('teams').select('*');
       
-      // Fetch ALL matches to correctly calculate total standings
+      // Fetch ALL matches to calculate live standings + completed match points
       const { data: activeMatches } = await supabase.from('matches').select('*').eq('status', 'in_progress');
+      const { data: completedMatchesData } = await supabase.from('matches').select('*').eq('status', 'completed');
       const { data: participants } = await supabase.from('match_participants').select('*, players(name)');
       const { data: scores } = await supabase.from('hole_scores').select('*');
 
       if (teams && activeMatches && participants && scores) {
         // Calculate LIVE standings by adding base total_points + live points
         const results = calculateLeaderboard(activeMatches, participants, scores, teams);
+
+        // Also calculate completed match player points
+        const allMatches = [...activeMatches, ...(completedMatchesData || [])];
+        const allResults = calculateLeaderboard(allMatches, participants, scores, teams);
+        setPlayerPointsMap(allResults.playerPoints);
         
         // Add permanent base points
         results.standings.forEach(s => {
@@ -1213,11 +1220,17 @@ export default function HubPage() {
                           {player.name.charAt(0)}
                         </div>
                       )}
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm text-slate-200">{player.name}</p>
                         {player.role === 'commissioner' && (
                           <p className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest mt-0.5">Captain</p>
                         )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-sm font-black" style={{ color: boostColor(team.color) }}>
+                          {(playerPointsMap[player.id] || 0) % 1 === 0 ? (playerPointsMap[player.id] || 0) : (playerPointsMap[player.id] || 0).toFixed(1)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 ml-1">pts</span>
                       </div>
                     </div>
                   ))}

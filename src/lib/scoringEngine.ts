@@ -14,6 +14,9 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
     teamStandings[t.id] = { id: t.id, name: t.name, color: t.color_hex, logo: t.logo_url || '', points: 0 };
   });
 
+  // Per-player point contributions
+  const playerPoints: Record<string, number> = {};
+
   const matchDetails = matches.map(match => {
     const mParts = participants.filter(p => p.match_id === match.id);
     const mScores = scores.filter(s => s.match_id === match.id);
@@ -141,18 +144,32 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
        if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += (match.points_2nd || 0);
        if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += (match.points_3rd || 0);
        
+       // Player-level credit: each player gets their placement points
+       playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + (match.points_1st || 0);
+       playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + (match.points_2nd || 0);
+       playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + (match.points_3rd || 0);
+       
        leaderText = `Leader: ${ranked[0].total} pts`;
     } else if (match.format === '2v1') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += (match.point_value || 0);
          leaderText = `${teamStandings[teamA_id]?.name} Up ${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]}`;
+         // Split points among winning team members
+         const pv = match.point_value || 0;
+         teamA_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamA_players.length; });
        } else if (bestBallTotals[teamB_id] > bestBallTotals[teamA_id]) {
          if (teamStandings[teamB_id]) teamStandings[teamB_id].points += (match.point_value || 0);
          leaderText = `${teamStandings[teamB_id]?.name} Up ${bestBallTotals[teamB_id] - bestBallTotals[teamA_id]}`;
+         const pv = match.point_value || 0;
+         teamB_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamB_players.length; });
        } else {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += ((match.point_value || 0) / 2);
          if (teamStandings[teamB_id]) teamStandings[teamB_id].points += ((match.point_value || 0) / 2);
          leaderText = "All Square";
+         // Tie: split half-points among each side
+         const halfPv = (match.point_value || 0) / 2;
+         teamA_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + halfPv / teamA_players.length; });
+         teamB_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + halfPv / teamB_players.length; });
        }
     }
 
@@ -199,6 +216,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
 
   return {
     standings: Object.values(teamStandings).sort((a,b) => b.points - a.points),
-    matchDetails
+    matchDetails,
+    playerPoints
   };
 }
