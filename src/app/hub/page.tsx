@@ -706,7 +706,15 @@ export default function HubPage() {
                             <span className="font-bold text-base" style={{ color: p.teamColor }}>{p.players?.name || 'Unknown'}</span>
                           </div>
                           <span className="text-white font-black bg-slate-900 px-3 py-1 rounded-lg border border-slate-700">
-                            {m.format === 'nines' ? `${m.ninesTotals[p.player_id]} pts` : `${m.bestBallTotals[p.team_id] ?? 0} UP`}
+                            {m.format === 'nines' ? `${m.ninesTotals[p.player_id]} pts` : (() => {
+                              const myHoles = m.bestBallTotals[p.team_id] ?? 0;
+                              const oppTeamId = p.team_id === m.teamA_id ? m.teamB_id : m.teamA_id;
+                              const oppHoles = m.bestBallTotals[oppTeamId] ?? 0;
+                              const diff = myHoles - oppHoles;
+                              if (diff > 0) return `${diff} UP`;
+                              if (diff < 0) return `${Math.abs(diff)} DN`;
+                              return 'AS';
+                            })()}
                           </span>
                         </div>
                       ))}
