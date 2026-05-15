@@ -626,13 +626,7 @@ export default function HubPage() {
             onClick={() => setActiveTab("scorecard")}
             className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "scorecard" ? "bg-slate-700 text-neon shadow-md border border-neon/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
           >
-            Scorecard
-          </button>
-          <button 
-            onClick={() => setActiveTab("rosters")}
-            className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "rosters" ? "bg-slate-700 text-blue-400 shadow-md border border-blue-400/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
-          >
-            Rosters
+            Play
           </button>
           {currentPlayer.role === 'commissioner' && (
             <button 
@@ -642,6 +636,12 @@ export default function HubPage() {
               Admin
             </button>
           )}
+          <button 
+            onClick={() => setActiveTab("rosters")}
+            className={`flex-1 min-w-[90px] py-3 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all uppercase tracking-widest whitespace-nowrap ${activeTab === "rosters" ? "bg-slate-700 text-blue-400 shadow-md border border-blue-400/20" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30"}`}
+          >
+            Rosters
+          </button>
         </div>
 
         {activeTab === "leaderboard" && (
