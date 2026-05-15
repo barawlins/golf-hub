@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useStore, Player } from "@/store/useStore";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { COURSES } from "@/lib/courseData";
+import { COURSES, getHolesForTee } from "@/lib/courseData";
 import { calculateLeaderboard, TeamStanding } from "@/lib/scoringEngine";
 
 function boostColor(hex: string) {
@@ -52,6 +52,7 @@ export default function HubPage() {
   // Matchup Creator State
   const [matchFormat, setMatchFormat] = useState<'2v1' | 'nines'>('nines');
   const [matchCourse, setMatchCourse] = useState<string>(COURSES[0].id);
+  const [matchTee, setMatchTee] = useState<string>(COURSES[0].tees[0].id);
   const [matchPointValue, setMatchPointValue] = useState<number>(2);
   const [ninesPoints, setNinesPoints] = useState({ first: 2, second: 1, third: 0 });
   const [selectedMatchPlayers, setSelectedMatchPlayers] = useState<string[]>(["", "", ""]);
@@ -369,6 +370,7 @@ export default function HubPage() {
     const { data: newMatch, error: matchError } = await supabase.from('matches').insert({
       round_id: activeRound.id,
       course_id: matchCourse,
+      tee_id: matchTee,
       format: matchFormat,
       scoring_rule: matchFormat === 'nines' ? 'aggregate' : 'best_ball',
       point_value: matchFormat === '2v1' ? matchPointValue : null,
@@ -548,7 +550,8 @@ export default function HubPage() {
 
   // Determine active course data
   const activeCourse = activeMatch ? COURSES.find(c => c.id === activeMatch.course_id) || COURSES[0] : null;
-  const currentHoleData = activeCourse ? activeCourse.holes[currentHole] : { par: 4, yardage: 0 };
+  const activeHoles = activeMatch ? getHolesForTee(activeMatch.course_id, activeMatch.tee_id) : activeCourse?.holes || {};
+  const currentHoleData = activeCourse ? (activeHoles[currentHole] || { par: 4, yardage: 0 }) : { par: 4, yardage: 0 };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-neon selection:text-slate-900">
@@ -743,8 +746,8 @@ export default function HubPage() {
                             <tr className="bg-slate-800/80 text-slate-500 border-b border-slate-700">
                               <td className="p-2 text-left font-medium sticky left-0 bg-slate-800/80 border-r border-slate-700 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.5)]">Par</td>
                               {[...Array(18)].map((_, i) => {
-                                const course = COURSES.find(c => c.id === m.match.course_id) || COURSES[0];
-                                return <td key={i} className="p-2 border-slate-700/50 border-r">{course.holes[i + 1]?.par ?? '-'}</td>;
+                                const teeHoles = getHolesForTee(m.match.course_id, m.match.tee_id);
+                                return <td key={i} className="p-2 border-slate-700/50 border-r">{teeHoles[i + 1]?.par ?? '-'}</td>;
                               })}
                             </tr>
                             {/* Player Rows */}
@@ -762,8 +765,8 @@ export default function HubPage() {
                                 </td>
                                 {[...Array(18)].map((_, i) => {
                                   const scoreObj = m.rawScores?.find((s: any) => s.player_id === p.player_id && s.hole_number === i + 1);
-                                  const course = COURSES.find(c => c.id === m.match.course_id) || COURSES[0];
-                                  const par = course.holes[i + 1]?.par || 4;
+                                  const teeHoles = getHolesForTee(m.match.course_id, m.match.tee_id);
+                                  const par = teeHoles[i + 1]?.par || 4;
                                   let textStyle = "text-slate-300 font-medium";
                                   let bgStyle = "w-6 h-6 flex items-center justify-center mx-auto";
                                   
@@ -1039,11 +1042,29 @@ export default function HubPage() {
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Course</label>
                   <select 
                     value={matchCourse} 
-                    onChange={e => setMatchCourse(e.target.value)}
+                    onChange={e => {
+                      const newCourse = e.target.value;
+                      setMatchCourse(newCourse);
+                      const course = COURSES.find(c => c.id === newCourse);
+                      if (course) setMatchTee(course.tees[0].id);
+                    }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all appearance-none"
                   >
                     {COURSES.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>{c.name} (Par {c.par})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Tees</label>
+                  <select 
+                    value={matchTee} 
+                    onChange={e => setMatchTee(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all appearance-none"
+                  >
+                    {(COURSES.find(c => c.id === matchCourse)?.tees || []).map(t => (
+                      <option key={t.id} value={t.id}>{t.name} — {t.totalYardage} yds</option>
                     ))}
                   </select>
                 </div>
