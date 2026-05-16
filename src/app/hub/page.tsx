@@ -51,7 +51,7 @@ export default function HubPage() {
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
 
   // Matchup Creator State
-  const [matchFormat, setMatchFormat] = useState<'2v1' | 'nines'>('nines');
+  const [matchFormat, setMatchFormat] = useState<'1v1' | '2v1' | '2v2' | 'nines'>('nines');
   const [matchCourse, setMatchCourse] = useState<string>(COURSES[0].id);
   const [matchTee, setMatchTee] = useState<string>(COURSES[0].tees[0].id);
   const [matchPointValue, setMatchPointValue] = useState<number>(2);
@@ -380,7 +380,7 @@ export default function HubPage() {
       tee_id: matchTee,
       format: matchFormat,
       scoring_rule: matchFormat === 'nines' ? 'aggregate' : 'best_ball',
-      point_value: matchFormat === '2v1' ? matchPointValue : null,
+      point_value: (matchFormat === '1v1' || matchFormat === '2v1' || matchFormat === '2v2') ? matchPointValue : null,
       points_1st: matchFormat === 'nines' ? ninesPoints.first : null,
       points_2nd: matchFormat === 'nines' ? ninesPoints.second : null,
       points_3rd: matchFormat === 'nines' ? ninesPoints.third : null,
@@ -441,7 +441,7 @@ export default function HubPage() {
             deductPoints(ranked[1].tid, matchResult.match.points_2nd || 0),
             deductPoints(ranked[2].tid, matchResult.match.points_3rd || 0)
           ]);
-        } else if (matchResult.format === '2v1') {
+        } else if (matchResult.format === '1v1' || matchResult.format === '2v1' || matchResult.format === '2v2') {
           const scoreA = matchResult.bestBallTotals[matchResult.teamA_id] || 0;
           const scoreB = matchResult.bestBallTotals[matchResult.teamB_id] || 0;
           const pVal = matchResult.match.point_value || 0;
@@ -513,7 +513,7 @@ export default function HubPage() {
           awardPoints(ranked[1].tid, matchResult.match.points_2nd || 0),
           awardPoints(ranked[2].tid, matchResult.match.points_3rd || 0)
         ]);
-      } else if (matchResult.format === '2v1') {
+      } else if (matchResult.format === '1v1' || matchResult.format === '2v1' || matchResult.format === '2v2') {
         const scoreA = matchResult.bestBallTotals[matchResult.teamA_id] || 0;
         const scoreB = matchResult.bestBallTotals[matchResult.teamB_id] || 0;
         const pVal = matchResult.match.point_value || 0;
@@ -701,7 +701,7 @@ export default function HubPage() {
                     )}
                     
                     <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-3 relative z-10">
-                      <span className="text-xs text-slate-400 font-bold uppercase">{m.format === 'nines' ? 'Nines (5-3-1)' : '2v1 Best Ball'}</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase">{({'nines': 'Nines (5-3-1)', '1v1': '1v1 Match Play', '2v1': '2v1 Best Ball', '2v2': '2v2 Best Ball'} as any)[m.format] || m.format}</span>
                       <span className="text-xs font-black uppercase tracking-wide" style={{ color: boostColor(m.leaderColor) }}>{m.leaderText}</span>
                     </div>
                     <div className="space-y-2 relative z-10">
@@ -1098,11 +1098,13 @@ export default function HubPage() {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all appearance-none"
                   >
                     <option value="nines">Nines (5-3-1)</option>
+                    <option value="1v1">1 vs 1 Match Play</option>
                     <option value="2v1">2 vs 1 Best Ball</option>
+                    <option value="2v2">2 vs 2 Best Ball</option>
                   </select>
                 </div>
 
-                {matchFormat === '2v1' && (
+                {(matchFormat === '1v1' || matchFormat === '2v1' || matchFormat === '2v2') && (
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Match Points for Winner</label>
                     <input 
@@ -1135,10 +1137,10 @@ export default function HubPage() {
                 
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Select Players</label>
-                  {[0, 1, 2].map((index) => (
+                  {[...Array(matchFormat === '1v1' ? 2 : matchFormat === '2v2' ? 4 : 3)].map((_, index) => (
                     <select 
                       key={index}
-                      value={selectedMatchPlayers[index]}
+                      value={selectedMatchPlayers[index] || ''}
                       onChange={(e) => {
                         const newSelected = [...selectedMatchPlayers];
                         newSelected[index] = e.target.value;

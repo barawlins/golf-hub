@@ -10,6 +10,6 @@ ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS points_1st float;
 ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS points_2nd float;
 ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS points_3rd float;
 
--- 3. Update the format constraint to allow 'nines' as a valid format
+-- 3. Update the format constraint to allow all match formats
 ALTER TABLE public.matches DROP CONSTRAINT IF EXISTS matches_format_check;
-ALTER TABLE public.matches ADD CONSTRAINT matches_format_check CHECK (format IN ('1v1', '2v1', 'nines'));
+ALTER TABLE public.matches ADD CONSTRAINT matches_format_check CHECK (format IN ('1v1', '2v1', '2v2', 'nines'));

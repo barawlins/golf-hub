@@ -43,13 +43,13 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       ninesTotals[p.player_id] = 0;
     });
 
-    // Determine teams for 2v1
+    // Determine teams for match play formats (1v1, 2v1, 2v2)
     let teamA_id = '';
     let teamA_players: string[] = [];
     let teamB_id = '';
     let teamB_players: string[] = [];
 
-    if (match.format === '2v1') {
+    if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
       const counts: Record<string, string[]> = {};
       mParts.forEach(p => {
         if (!counts[p.team_id]) counts[p.team_id] = [];
@@ -57,13 +57,8 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       });
       const tIds = Object.keys(counts);
       if (tIds.length >= 2) {
-         if (counts[tIds[0]].length === 2) {
-           teamA_id = tIds[0]; teamA_players = counts[tIds[0]];
-           teamB_id = tIds[1]; teamB_players = counts[tIds[1]];
-         } else {
-           teamA_id = tIds[1]; teamA_players = counts[tIds[1]];
-           teamB_id = tIds[0]; teamB_players = counts[tIds[0]];
-         }
+         teamA_id = tIds[0]; teamA_players = counts[tIds[0]];
+         teamB_id = tIds[1]; teamB_players = counts[tIds[1]];
       }
       bestBallTotals[teamA_id] = 0; // holes won
       bestBallTotals[teamB_id] = 0;
@@ -110,20 +105,20 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
              holeWinners[h] = winners;
            }
         }
-      } else if (match.format === '2v1') {
-        // Need scores for both teams to calculate best ball
-        // Ensure at least one score from teamA and the score from teamB
+      } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
+        // Match play: best ball per side
         const tA_scores = teamA_players.map(pid => hScores[pid]).filter(s => s !== undefined);
-        const tB_score = teamB_players.map(pid => hScores[pid]).filter(s => s !== undefined)[0];
+        const tB_scores = teamB_players.map(pid => hScores[pid]).filter(s => s !== undefined);
 
-        if (tA_scores.length > 0 && tB_score !== undefined) {
+        if (tA_scores.length > 0 && tB_scores.length > 0) {
            const tA_best = Math.min(...tA_scores);
-           if (tA_best < tB_score) {
+           const tB_best = Math.min(...tB_scores);
+           if (tA_best < tB_best) {
              bestBallTotals[teamA_id] += 1;
              holeWinners[h] = teamA_players.filter(pid => hScores[pid] === tA_best);
-           } else if (tB_score < tA_best) {
+           } else if (tB_best < tA_best) {
              bestBallTotals[teamB_id] += 1;
-             holeWinners[h] = teamB_players.filter(pid => hScores[pid] === tB_score);
+             holeWinners[h] = teamB_players.filter(pid => hScores[pid] === tB_best);
            }
            // Ties result in no holes won for either team
         }
@@ -150,7 +145,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
        playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + (match.points_3rd || 0);
        
        leaderText = `Leader: ${ranked[0].total} pts`;
-    } else if (match.format === '2v1') {
+    } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += (match.point_value || 0);
          leaderText = `${teamStandings[teamA_id]?.name} Up ${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]}`;
@@ -182,7 +177,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
        })).sort((a,b) => b.total - a.total);
        leaderColor = teamStandings[ranked[0].tid]?.color || '#4ade80';
        leaderLogo = teamStandings[ranked[0].tid]?.logo || '';
-    } else if (match.format === '2v1') {
+    } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          leaderColor = teamStandings[teamA_id]?.color || '#4ade80';
          leaderLogo = teamStandings[teamA_id]?.logo || '';
