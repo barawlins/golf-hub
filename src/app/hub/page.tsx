@@ -56,7 +56,7 @@ export default function HubPage() {
   const [matchTee, setMatchTee] = useState<string>(COURSES[0].tees[0].id);
   const [matchPointValue, setMatchPointValue] = useState<number>(2);
   const [ninesPoints, setNinesPoints] = useState({ first: 2, second: 1, third: 0 });
-  const [selectedMatchPlayers, setSelectedMatchPlayers] = useState<string[]>(["", "", ""]);
+  const [selectedMatchPlayers, setSelectedMatchPlayers] = useState<string[]>(["", "", "", ""]);
 
   // Scorecard State
   const [activeMatch, setActiveMatch] = useState<any>(null);
@@ -352,8 +352,10 @@ export default function HubPage() {
   };
 
   const handleCreateMatch = async () => {
-    if (selectedMatchPlayers.includes("")) {
-      alert("Please select 3 players for the match.");
+    const expectedCount = matchFormat === '1v1' ? 2 : matchFormat === '2v2' ? 4 : 3;
+    const selected = selectedMatchPlayers.slice(0, expectedCount);
+    if (selected.some(p => !p)) {
+      alert(`Please select ${expectedCount} players for the match.`);
       return;
     }
     
@@ -393,7 +395,7 @@ export default function HubPage() {
     }
 
     // 3. Add Participants
-    const participants = selectedMatchPlayers.map(pid => {
+    const participants = selected.map(pid => {
       const p = allPlayers.find(x => x.id === pid);
       if (!p) return null;
       return { match_id: newMatch.id, player_id: p.id, team_id: p.team_id };
@@ -403,7 +405,7 @@ export default function HubPage() {
     
     setIsSaving(false);
     alert(`${matchFormat.toUpperCase()} Match created successfully!`);
-    setSelectedMatchPlayers(["", "", ""]); // reset form
+    setSelectedMatchPlayers(["", "", "", ""]); // reset form
   };
 
   const handleLogout = () => {
