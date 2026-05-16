@@ -719,10 +719,9 @@ export default function HubPage() {
                           </div>
                           <span className="text-white font-black bg-slate-900 px-3 py-1 rounded-lg border border-slate-700">
                             {m.format === 'nines' ? `${m.ninesTotals[p.player_id]} pts` : (() => {
-                              const teamHoles = m.bestBallTotals[p.team_id] ?? 0;
                               const indiv = m.playerHolesWon?.[p.player_id] ?? 0;
                               const indivDisplay = indiv % 1 === 0 ? indiv : indiv.toFixed(1);
-                              return <>{indivDisplay}<span className="text-slate-500 font-medium text-xs mx-1">of</span>{teamHoles}</>;
+                              return `${indivDisplay}`;
                             })()}
                           </span>
                         </div>

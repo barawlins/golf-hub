@@ -154,13 +154,13 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
     } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += (match.point_value || 0);
-         leaderText = `${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]} UP`;
+         leaderText = `${teamStandings[teamA_id]?.name || 'Team A'} ${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]} UP`;
          // Split points among winning team members
          const pv = match.point_value || 0;
          teamA_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamA_players.length; });
        } else if (bestBallTotals[teamB_id] > bestBallTotals[teamA_id]) {
          if (teamStandings[teamB_id]) teamStandings[teamB_id].points += (match.point_value || 0);
-         leaderText = `${bestBallTotals[teamB_id] - bestBallTotals[teamA_id]} UP`;
+         leaderText = `${teamStandings[teamB_id]?.name || 'Team B'} ${bestBallTotals[teamB_id] - bestBallTotals[teamA_id]} UP`;
          const pv = match.point_value || 0;
          teamB_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamB_players.length; });
        } else {
