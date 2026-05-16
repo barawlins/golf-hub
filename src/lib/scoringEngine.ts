@@ -65,6 +65,8 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
     }
 
     const holeWinners: Record<number, string[]> = {};
+    const playerHolesWon: Record<string, number> = {};
+    mParts.forEach(p => { playerHolesWon[p.player_id] = 0; });
     // Process each hole 1 to 18
     for (let h = 1; h <= 18; h++) {
       const hScores = scoresByHole[h];
@@ -115,10 +117,14 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
            const tB_best = Math.min(...tB_scores);
            if (tA_best < tB_best) {
              bestBallTotals[teamA_id] += 1;
-             holeWinners[h] = teamA_players.filter(pid => hScores[pid] === tA_best);
+             const contributors = teamA_players.filter(pid => hScores[pid] === tA_best);
+             holeWinners[h] = contributors;
+             contributors.forEach(pid => { playerHolesWon[pid] += 1 / contributors.length; });
            } else if (tB_best < tA_best) {
              bestBallTotals[teamB_id] += 1;
-             holeWinners[h] = teamB_players.filter(pid => hScores[pid] === tB_best);
+             const contributors = teamB_players.filter(pid => hScores[pid] === tB_best);
+             holeWinners[h] = contributors;
+             contributors.forEach(pid => { playerHolesWon[pid] += 1 / contributors.length; });
            }
            // Ties result in no holes won for either team
         }
@@ -148,13 +154,13 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
     } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += (match.point_value || 0);
-         leaderText = `${teamStandings[teamA_id]?.name} Up ${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]}`;
+         leaderText = `${bestBallTotals[teamA_id]} - ${bestBallTotals[teamB_id]}`;
          // Split points among winning team members
          const pv = match.point_value || 0;
          teamA_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamA_players.length; });
        } else if (bestBallTotals[teamB_id] > bestBallTotals[teamA_id]) {
          if (teamStandings[teamB_id]) teamStandings[teamB_id].points += (match.point_value || 0);
-         leaderText = `${teamStandings[teamB_id]?.name} Up ${bestBallTotals[teamB_id] - bestBallTotals[teamA_id]}`;
+         leaderText = `${bestBallTotals[teamB_id]} - ${bestBallTotals[teamA_id]}`;
          const pv = match.point_value || 0;
          teamB_players.forEach(pid => { playerPoints[pid] = (playerPoints[pid] || 0) + pv / teamB_players.length; });
        } else {
@@ -205,7 +211,8 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       teamB_id,
       isMatchComplete,
       rawScores: mScores,
-      holeWinners
+      holeWinners,
+      playerHolesWon
     };
   });
 
