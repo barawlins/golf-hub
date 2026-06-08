@@ -33,7 +33,7 @@ create table public.matches (
   id uuid primary key default uuid_generate_v4(),
   round_id uuid references public.rounds(id),
   course_id text,
-  format text check (format in ('1v1', '2v1', 'nines')) not null,
+  format text check (format in ('1v1', '2v1', '2v2', '1v1v1', 'nines')) not null,
   scoring_rule text check (scoring_rule in ('best_ball', 'aggregate', 'alternate_shot')),
   point_value float default 1,
   points_1st float,
@@ -57,6 +57,7 @@ create table public.hole_scores (
   player_id uuid references public.players(id),
   hole_number int not null,
   strokes int not null,
+  bought_drives int default 0,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 

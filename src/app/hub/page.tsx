@@ -51,7 +51,7 @@ export default function HubPage() {
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
 
   // Matchup Creator State
-  const [matchFormat, setMatchFormat] = useState<'1v1' | '2v1' | '2v2' | 'nines'>('nines');
+  const [matchFormat, setMatchFormat] = useState<'1v1' | '2v1' | '2v2' | '1v1v1' | 'nines'>('nines');
   const [matchCourse, setMatchCourse] = useState<string>(COURSES[0].id);
   const [matchTee, setMatchTee] = useState<string>(COURSES[0].tees[0].id);
   const [matchPointValue, setMatchPointValue] = useState<number>(2);
@@ -63,6 +63,7 @@ export default function HubPage() {
   const [matchParticipants, setMatchParticipants] = useState<any[]>([]);
   const [currentHole, setCurrentHole] = useState(1);
   const [playerStrokes, setPlayerStrokes] = useState<Record<string, number | ''>>({});
+  const [playerBoughtDrives, setPlayerBoughtDrives] = useState<Record<string, number>>({});
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -183,16 +184,19 @@ export default function HubPage() {
   async function fetchExistingScores(matchId: string, hole: number, participants: any[]) {
     const { data } = await supabase
       .from('hole_scores')
-      .select('player_id, strokes')
+      .select('player_id, strokes, bought_drives')
       .eq('match_id', matchId)
       .eq('hole_number', hole);
       
     const map: Record<string, number | ''> = {};
+    const bdMap: Record<string, number> = {};
     participants.forEach(p => {
       const found = data?.find(s => s.player_id === p.player_id);
       map[p.player_id] = found ? found.strokes : '';
+      bdMap[p.player_id] = found ? (found.bought_drives || 0) : 0;
     });
     setPlayerStrokes(map);
+    setPlayerBoughtDrives(bdMap);
   }
 
   const handleHoleChange = (direction: 'next' | 'prev') => {
@@ -210,7 +214,24 @@ export default function HubPage() {
     setPlayerStrokes(prev => {
       const current = prev[playerId];
       if (current === '' && delta < 0) return prev;
-      const newVal = current === '' ? 1 : Math.max(1, current + delta);
+      let newVal = current === '' ? 1 : Math.max(1, current + delta);
+      
+      if (activeMatch && activeMatch.format === '2v1') {
+         const pTeamId = matchParticipants.find(mp => mp.player_id === playerId)?.team_id;
+         const teamSize = matchParticipants.filter(mp => mp.team_id === pTeamId).length;
+         const isSingle = teamSize === 1;
+         const par = currentHoleData.par;
+         
+         if (isSingle) {
+            newVal = Math.min(newVal, par + 2); // Double Bogey max
+         } else {
+            newVal = Math.min(newVal, par + 3); // Triple Bogey max
+         }
+      } else if (activeMatch && activeMatch.format === '1v1v1') {
+         const par = currentHoleData.par;
+         newVal = Math.min(newVal, par + 3); // Triple Bogey max
+      }
+
       return { ...prev, [playerId]: newVal };
     });
   };
@@ -231,7 +252,8 @@ export default function HubPage() {
       match_id: activeMatch.id,
       player_id: playerId,
       hole_number: currentHole,
-      strokes: strokes
+      strokes: strokes,
+      bought_drives: playerBoughtDrives[playerId] || 0
     }));
 
     const { error } = await supabase.from('hole_scores').upsert(
@@ -383,8 +405,8 @@ export default function HubPage() {
       format: matchFormat,
       scoring_rule: matchFormat === 'nines' ? 'aggregate' : 'best_ball',
       point_value: (matchFormat === '1v1' || matchFormat === '2v1' || matchFormat === '2v2') ? matchPointValue : null,
-      points_1st: matchFormat === 'nines' ? ninesPoints.first : null,
-      points_2nd: matchFormat === 'nines' ? ninesPoints.second : null,
+      points_1st: (matchFormat === 'nines' || matchFormat === '1v1v1') ? ninesPoints.first : null,
+      points_2nd: (matchFormat === 'nines' || matchFormat === '1v1v1') ? ninesPoints.second : null,
       points_3rd: matchFormat === 'nines' ? ninesPoints.third : null,
       status: 'in_progress'
     }).select('id').single();
@@ -437,13 +459,53 @@ export default function HubPage() {
              tid: p.team_id,
              total: matchResult.ninesTotals[p.player_id]
           })).sort((a: any, b: any) => b.total - a.total);
+          if (ranked[0].total === ranked[1].total && ranked[1].total === ranked[2].total) {
+              const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0) + (matchResult.match.points_3rd || 0)) / 3;
+              await Promise.all([ deductPoints(ranked[0].tid, split), deductPoints(ranked[1].tid, split), deductPoints(ranked[2].tid, split) ]);
+          } else if (ranked[0].total === ranked[1].total) {
+              const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0)) / 2;
+              await Promise.all([ deductPoints(ranked[0].tid, split), deductPoints(ranked[1].tid, split), deductPoints(ranked[2].tid, matchResult.match.points_3rd || 0) ]);
+          } else if (ranked[1].total === ranked[2].total) {
+              const split = ((matchResult.match.points_2nd || 0) + (matchResult.match.points_3rd || 0)) / 2;
+              await Promise.all([ deductPoints(ranked[0].tid, matchResult.match.points_1st || 0), deductPoints(ranked[1].tid, split), deductPoints(ranked[2].tid, split) ]);
+          } else {
+              await Promise.all([ deductPoints(ranked[0].tid, matchResult.match.points_1st || 0), deductPoints(ranked[1].tid, matchResult.match.points_2nd || 0), deductPoints(ranked[2].tid, matchResult.match.points_3rd || 0) ]);
+          }
+        } else if (matchResult.format === '2v1') {
+          const teamA_size = matchResult.participants.filter((p:any) => p.team_id === matchResult.teamA_id).length;
           
-          await Promise.all([
-            deductPoints(ranked[0].tid, matchResult.match.points_1st || 0),
-            deductPoints(ranked[1].tid, matchResult.match.points_2nd || 0),
-            deductPoints(ranked[2].tid, matchResult.match.points_3rd || 0)
-          ]);
-        } else if (matchResult.format === '1v1' || matchResult.format === '2v1' || matchResult.format === '2v2') {
+          let singleTeamId = teamA_size === 1 ? matchResult.teamA_id : matchResult.teamB_id;
+          let twosomeTeamId = teamA_size === 2 ? matchResult.teamA_id : matchResult.teamB_id;
+          
+          if (matchResult.bestBallTotals[singleTeamId] > matchResult.bestBallTotals[twosomeTeamId]) {
+            await deductPoints(singleTeamId, matchResult.match.point_value || 0);
+          } else if (matchResult.bestBallTotals[twosomeTeamId] > matchResult.bestBallTotals[singleTeamId]) {
+            await deductPoints(twosomeTeamId, matchResult.match.point_value || 0);
+          } else {
+            const split = (matchResult.match.point_value || 0) / 2;
+            await deductPoints(singleTeamId, split);
+            await deductPoints(twosomeTeamId, split);
+          }
+        } else if (matchResult.format === '1v1v1') {
+          const scores = [
+              { tid: matchResult.teamA_id, total: matchResult.bestBallTotals[matchResult.teamA_id] || 0 },
+              { tid: matchResult.teamB_id, total: matchResult.bestBallTotals[matchResult.teamB_id] || 0 },
+              { tid: matchResult.teamC_id, total: matchResult.bestBallTotals[matchResult.teamC_id] || 0 }
+          ].sort((a,b) => b.total - a.total);
+          
+          if (scores[0].total === scores[1].total && scores[1].total === scores[2].total) {
+              const split = ((match.points_1st || 0) + (match.points_2nd || 0)) / 3;
+              await Promise.all([ deductPoints(scores[0].tid, split), deductPoints(scores[1].tid, split), deductPoints(scores[2].tid, split) ]);
+          } else if (scores[0].total === scores[1].total) {
+              const split = ((match.points_1st || 0) + (match.points_2nd || 0)) / 2;
+              await Promise.all([ deductPoints(scores[0].tid, split), deductPoints(scores[1].tid, split) ]);
+          } else if (scores[1].total === scores[2].total) {
+              const split = (match.points_2nd || 0) / 2;
+              await Promise.all([ deductPoints(scores[0].tid, match.points_1st || 0), deductPoints(scores[1].tid, split), deductPoints(scores[2].tid, split) ]);
+          } else {
+              await Promise.all([ deductPoints(scores[0].tid, match.points_1st || 0), deductPoints(scores[1].tid, match.points_2nd || 0) ]);
+          }
+        } else if (matchResult.format === '1v1' || matchResult.format === '2v2') {
           const scoreA = matchResult.bestBallTotals[matchResult.teamA_id] || 0;
           const scoreB = matchResult.bestBallTotals[matchResult.teamB_id] || 0;
           const pVal = matchResult.match.point_value || 0;
@@ -510,12 +572,52 @@ export default function HubPage() {
            total: matchResult.ninesTotals[p.player_id]
         })).sort((a: any, b: any) => b.total - a.total);
         
-        await Promise.all([
-          awardPoints(ranked[0].tid, matchResult.match.points_1st || 0),
-          awardPoints(ranked[1].tid, matchResult.match.points_2nd || 0),
-          awardPoints(ranked[2].tid, matchResult.match.points_3rd || 0)
-        ]);
-      } else if (matchResult.format === '1v1' || matchResult.format === '2v1' || matchResult.format === '2v2') {
+        if (ranked[0].total === ranked[1].total && ranked[1].total === ranked[2].total) {
+            const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0) + (matchResult.match.points_3rd || 0)) / 3;
+            await Promise.all([ awardPoints(ranked[0].tid, split), awardPoints(ranked[1].tid, split), awardPoints(ranked[2].tid, split) ]);
+        } else if (ranked[0].total === ranked[1].total) {
+            const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0)) / 2;
+            await Promise.all([ awardPoints(ranked[0].tid, split), awardPoints(ranked[1].tid, split), awardPoints(ranked[2].tid, matchResult.match.points_3rd || 0) ]);
+        } else if (ranked[1].total === ranked[2].total) {
+            const split = ((matchResult.match.points_2nd || 0) + (matchResult.match.points_3rd || 0)) / 2;
+            await Promise.all([ awardPoints(ranked[0].tid, matchResult.match.points_1st || 0), awardPoints(ranked[1].tid, split), awardPoints(ranked[2].tid, split) ]);
+        } else {
+            await Promise.all([ awardPoints(ranked[0].tid, matchResult.match.points_1st || 0), awardPoints(ranked[1].tid, matchResult.match.points_2nd || 0), awardPoints(ranked[2].tid, matchResult.match.points_3rd || 0) ]);
+        }
+      } else if (matchResult.format === '2v1') {
+        const teamA_size = matchResult.participants.filter((p:any) => p.team_id === matchResult.teamA_id).length;
+        
+        let singleTeamId = teamA_size === 1 ? matchResult.teamA_id : matchResult.teamB_id;
+        let twosomeTeamId = teamA_size === 2 ? matchResult.teamA_id : matchResult.teamB_id;
+        
+        if (matchResult.bestBallTotals[singleTeamId] > matchResult.bestBallTotals[twosomeTeamId]) {
+          await awardPoints(singleTeamId, 4);
+        } else if (matchResult.bestBallTotals[twosomeTeamId] > matchResult.bestBallTotals[singleTeamId]) {
+          await awardPoints(twosomeTeamId, 3);
+        } else {
+          await awardPoints(singleTeamId, 2);
+          await awardPoints(twosomeTeamId, 2);
+        }
+      } else if (matchResult.format === '1v1v1') {
+          const scores = [
+              { tid: matchResult.teamA_id, total: matchResult.bestBallTotals[matchResult.teamA_id] || 0 },
+              { tid: matchResult.teamB_id, total: matchResult.bestBallTotals[matchResult.teamB_id] || 0 },
+              { tid: matchResult.teamC_id, total: matchResult.bestBallTotals[matchResult.teamC_id] || 0 }
+          ].sort((a,b) => b.total - a.total);
+          
+          if (scores[0].total === scores[1].total && scores[1].total === scores[2].total) {
+              const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0)) / 3;
+              await Promise.all([ awardPoints(scores[0].tid, split), awardPoints(scores[1].tid, split), awardPoints(scores[2].tid, split) ]);
+          } else if (scores[0].total === scores[1].total) {
+              const split = ((matchResult.match.points_1st || 0) + (matchResult.match.points_2nd || 0)) / 2;
+              await Promise.all([ awardPoints(scores[0].tid, split), awardPoints(scores[1].tid, split) ]);
+          } else if (scores[1].total === scores[2].total) {
+              const split = (matchResult.match.points_2nd || 0) / 2;
+              await Promise.all([ awardPoints(scores[0].tid, matchResult.match.points_1st || 0), awardPoints(scores[1].tid, split), awardPoints(scores[2].tid, split) ]);
+          } else {
+              await Promise.all([ awardPoints(scores[0].tid, matchResult.match.points_1st || 0), awardPoints(scores[1].tid, matchResult.match.points_2nd || 0) ]);
+          }
+      } else if (matchResult.format === '1v1' || matchResult.format === '2v2') {
         const scoreA = matchResult.bestBallTotals[matchResult.teamA_id] || 0;
         const scoreB = matchResult.bestBallTotals[matchResult.teamB_id] || 0;
         const pVal = matchResult.match.point_value || 0;
@@ -678,7 +780,7 @@ export default function HubPage() {
                         )}
                         <p className="font-bold text-lg" style={{ color: boostColor(team.color) }}>{team.name}</p>
                       </div>
-                      <span className="text-xl font-black text-neon">{team.points} <span className="text-[10px] text-slate-500 uppercase tracking-widest">PTS</span></span>
+                      <span className="text-xl font-black text-neon">{team.points % 1 === 0 ? team.points : team.points.toFixed(1)} <span className="text-[10px] text-slate-500 uppercase tracking-widest">PTS</span></span>
                     </div>
                   ))
                 )}
@@ -697,13 +799,13 @@ export default function HubPage() {
                     {/* Leading Team Watermark */}
                     {m.leaderLogo && !m.leaderText.includes('Tied') && !m.leaderText.includes('Square') && (
                       <div 
-                        className="absolute right-[-10%] top-[-10%] w-48 h-48 opacity-[0.08] pointer-events-none"
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 opacity-[0.25] brightness-150 pointer-events-none mix-blend-screen"
                         style={{ backgroundImage: `url(${m.leaderLogo})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
                       />
                     )}
                     
                     <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-3 relative z-10">
-                      <span className="text-xs text-slate-400 font-bold uppercase">{({'nines': 'Nines (5-3-1)', '1v1': '1v1 Match Play', '2v1': '2v1 Best Ball', '2v2': '2v2 Best Ball'} as any)[m.format] || m.format}</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase">{({'nines': 'Nines (5-3-1)', '1v1': '1v1 Match Play', '2v1': '2v1 Stableford', '1v1v1': '1v1v1 Stableford', '2v2': '2v2 Best Ball'} as any)[m.format] || m.format}</span>
                       <span className="text-xs font-black uppercase tracking-wide" style={{ color: boostColor(m.leaderColor) }}>{m.leaderText}</span>
                     </div>
                     <div className="space-y-2 relative z-10">
@@ -715,7 +817,7 @@ export default function HubPage() {
                             ) : (
                               <div className="w-5 h-5 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
                             )}
-                            <span className="font-bold text-base" style={{ color: p.teamColor }}>{p.players?.name || 'Unknown'}</span>
+                            <span className="font-bold text-base" style={{ color: boostColor(p.teamColor) }}>{p.players?.name || 'Unknown'}</span>
                           </div>
                           <span className="text-white font-black bg-slate-900 px-3 py-1 rounded-lg border border-slate-700">
                             {m.format === 'nines' ? `${m.ninesTotals[p.player_id]} pts` : (() => {
@@ -886,21 +988,36 @@ export default function HubPage() {
                             {isMe && <span className="text-[9px] text-neon font-bold uppercase">You</span>}
                           </div>
                         </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={val === '' ? '' : val}
-                          placeholder="-"
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, '');
-                            setPlayerStrokes(prev => ({
-                              ...prev,
-                              [p.player_id]: raw === '' ? '' : Math.max(1, parseInt(raw))
-                            }));
-                          }}
-                          className="w-16 h-12 text-center text-2xl font-black text-neon bg-slate-900 border-2 border-slate-700 rounded-xl focus:border-neon focus:outline-none focus:ring-1 focus:ring-neon/50 transition-all placeholder:text-slate-600"
-                        />
+                        <div className="flex flex-col gap-1 items-end">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={val === '' ? '' : val}
+                            placeholder="-"
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, '');
+                              setPlayerStrokes(prev => ({
+                                ...prev,
+                                [p.player_id]: raw === '' ? '' : Math.max(1, parseInt(raw))
+                              }));
+                            }}
+                            className="w-16 h-12 text-center text-2xl font-black text-neon bg-slate-900 border-2 border-slate-700 rounded-xl focus:border-neon focus:outline-none focus:ring-1 focus:ring-neon/50 transition-all placeholder:text-slate-600"
+                          />
+                          {activeMatch.format === '1v1v1' && (
+                            <button
+                              onClick={() => {
+                                setPlayerBoughtDrives(prev => ({
+                                  ...prev,
+                                  [p.player_id]: prev[p.player_id] ? 0 : 1
+                                }));
+                              }}
+                              className={`text-[9px] font-bold uppercase px-2 py-1 rounded transition-colors ${playerBoughtDrives[p.player_id] ? 'bg-yellow-500 text-yellow-950 border border-yellow-500' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500'}`}
+                            >
+                              {playerBoughtDrives[p.player_id] ? 'Drive Bought (-1)' : 'Buy Drive'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1096,13 +1213,12 @@ export default function HubPage() {
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-yellow-500 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all appearance-none"
                   >
                     <option value="nines">Nines (5-3-1)</option>
-                    <option value="1v1">1 vs 1 Match Play</option>
-                    <option value="2v1">2 vs 1 Best Ball</option>
-                    <option value="2v2">2 vs 2 Best Ball</option>
+                    <option value="1v1v1">1 vs 1 vs 1 Stableford</option>
+                    <option value="2v1">2 vs 1 Stableford</option>
                   </select>
                 </div>
 
-                {(matchFormat === '1v1' || matchFormat === '2v1' || matchFormat === '2v2') && (
+                {(matchFormat === '1v1' || matchFormat === '2v2') && (
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Match Points for Winner</label>
                     <input 
@@ -1113,7 +1229,7 @@ export default function HubPage() {
                     />
                   </div>
                 )}
-                {matchFormat === 'nines' && (
+                {(matchFormat === 'nines' || matchFormat === '1v1v1') && (
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Match Points Payout</label>
                     <div className="flex gap-2">
@@ -1125,10 +1241,12 @@ export default function HubPage() {
                         <label className="text-[10px] text-slate-500 uppercase pl-1">2nd Place</label>
                         <input type="number" value={ninesPoints.second} onChange={e => setNinesPoints({...ninesPoints, second: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white font-medium text-center focus:border-yellow-500 focus:outline-none" />
                       </div>
-                      <div className="flex-1">
-                        <label className="text-[10px] text-slate-500 uppercase pl-1">3rd Place</label>
-                        <input type="number" value={ninesPoints.third} onChange={e => setNinesPoints({...ninesPoints, third: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white font-medium text-center focus:border-yellow-500 focus:outline-none" />
-                      </div>
+                      {matchFormat === 'nines' && (
+                        <div className="flex-1">
+                          <label className="text-[10px] text-slate-500 uppercase pl-1">3rd Place</label>
+                          <input type="number" value={ninesPoints.third} onChange={e => setNinesPoints({...ninesPoints, third: Number(e.target.value)})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white font-medium text-center focus:border-yellow-500 focus:outline-none" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

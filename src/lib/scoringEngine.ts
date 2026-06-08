@@ -1,3 +1,5 @@
+import { getHolesForTee } from '@/lib/courseData';
+
 export type TeamStanding = {
   id: string;
   name: string;
@@ -23,9 +25,14 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
 
     // Group scores by hole
     const scoresByHole: Record<number, Record<string, number>> = {};
+    const boughtDrivesByHole: Record<number, Record<string, number>> = {};
     mScores.forEach(s => {
-      if (!scoresByHole[s.hole_number]) scoresByHole[s.hole_number] = {};
+      if (!scoresByHole[s.hole_number]) {
+         scoresByHole[s.hole_number] = {};
+         boughtDrivesByHole[s.hole_number] = {};
+      }
       scoresByHole[s.hole_number][s.player_id] = s.strokes;
+      boughtDrivesByHole[s.hole_number][s.player_id] = s.bought_drives || 0;
     });
 
     let isMatchComplete = true;
@@ -43,13 +50,15 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       ninesTotals[p.player_id] = 0;
     });
 
-    // Determine teams for match play formats (1v1, 2v1, 2v2)
+    // Determine teams for match play formats (1v1, 2v1, 2v2, 1v1v1)
     let teamA_id = '';
     let teamA_players: string[] = [];
     let teamB_id = '';
     let teamB_players: string[] = [];
+    let teamC_id = '';
+    let teamC_players: string[] = [];
 
-    if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
+    if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2' || match.format === '1v1v1') {
       const counts: Record<string, string[]> = {};
       mParts.forEach(p => {
         if (!counts[p.team_id]) counts[p.team_id] = [];
@@ -60,8 +69,12 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
          teamA_id = tIds[0]; teamA_players = counts[tIds[0]];
          teamB_id = tIds[1]; teamB_players = counts[tIds[1]];
       }
-      bestBallTotals[teamA_id] = 0; // holes won
+      if (tIds.length >= 3) {
+         teamC_id = tIds[2]; teamC_players = counts[tIds[2]];
+      }
+      bestBallTotals[teamA_id] = 0; // holes won or points
       bestBallTotals[teamB_id] = 0;
+      if (teamC_id) bestBallTotals[teamC_id] = 0;
     }
 
     const holeWinners: Record<number, string[]> = {};
@@ -107,7 +120,84 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
              holeWinners[h] = winners;
            }
         }
-      } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
+      } else if (match.format === '2v1') {
+        const teeHoles = getHolesForTee(match.course_id, match.tee_id);
+        const par = teeHoles[h]?.par || 4;
+
+        let singleTeamId = teamA_players.length === 1 ? teamA_id : teamB_id;
+        let singlePlayers = teamA_players.length === 1 ? teamA_players : teamB_players;
+        let twosomeTeamId = teamA_players.length === 2 ? teamA_id : teamB_id;
+        let twosomePlayers = teamA_players.length === 2 ? teamA_players : teamB_players;
+
+        // Fallback just in case
+        if (singlePlayers.length !== 1 || twosomePlayers.length !== 2) {
+            singleTeamId = teamA_id; singlePlayers = teamA_players;
+            twosomeTeamId = teamB_id; twosomePlayers = teamB_players;
+        }
+
+        const calculateStableford = (score: number, p: number, isSingle: boolean) => {
+            const toPar = score - p;
+            if (toPar <= -2) return 5;
+            if (toPar === -1) return 3;
+            if (toPar === 0) return 1;
+            if (toPar === 1) return 0;
+            if (toPar === 2) return isSingle ? -1 : -2;
+            if (toPar >= 3) return isSingle ? -1 : -3;
+            return 0;
+        };
+
+        const singleScore = hScores[singlePlayers[0]];
+        const tScores = twosomePlayers.map(pid => hScores[pid]).filter(s => s !== undefined);
+
+        if (singleScore !== undefined) {
+            const pts = calculateStableford(singleScore, par, true);
+            bestBallTotals[singleTeamId] += pts;
+            playerHolesWon[singlePlayers[0]] += pts;
+            if (pts > 0) holeWinners[h] = [singlePlayers[0]];
+        }
+
+        if (tScores.length > 0) {
+            const bestTwosomeScore = Math.min(...tScores);
+            const pts = calculateStableford(bestTwosomeScore, par, false);
+            bestBallTotals[twosomeTeamId] += pts;
+            twosomePlayers.forEach(pid => { playerHolesWon[pid] += pts; });
+            if (pts > 0) {
+               const contributors = twosomePlayers.filter(pid => hScores[pid] === bestTwosomeScore);
+               if (!holeWinners[h]) holeWinners[h] = contributors;
+               else holeWinners[h] = [...holeWinners[h], ...contributors];
+            }
+        }
+
+      } else if (match.format === '1v1v1') {
+        const teeHoles = getHolesForTee(match.course_id, match.tee_id);
+        const par = teeHoles[h]?.par || 4;
+        
+        const calculateStableford = (score: number, p: number) => {
+            const toPar = score - p;
+            if (toPar <= -2) return 5;
+            if (toPar === -1) return 3;
+            if (toPar === 0) return 1;
+            if (toPar === 1) return 0;
+            if (toPar === 2) return -1;
+            if (toPar >= 3) return -2;
+            return 0;
+        };
+
+        const bDrives = boughtDrivesByHole[h] || {};
+        const pScores = [
+            { pid: teamA_players[0], tid: teamA_id },
+            { pid: teamB_players[0], tid: teamB_id },
+            { pid: teamC_players[0], tid: teamC_id }
+        ].filter(x => x.pid && hScores[x.pid] !== undefined);
+
+        pScores.forEach(({ pid, tid }) => {
+            let pts = calculateStableford(hScores[pid], par);
+            pts -= (bDrives[pid] || 0); // subtract bought drives penalty
+            bestBallTotals[tid] += pts;
+            playerHolesWon[pid] += pts;
+        });
+
+      } else if (match.format === '1v1' || match.format === '2v2') {
         // Match play: best ball per side
         const tA_scores = teamA_players.map(pid => hScores[pid]).filter(s => s !== undefined);
         const tB_scores = teamB_players.map(pid => hScores[pid]).filter(s => s !== undefined);
@@ -141,17 +231,111 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
          total: ninesTotals[p.player_id]
        })).sort((a,b) => b.total - a.total);
        
-       if (teamStandings[ranked[0].tid]) teamStandings[ranked[0].tid].points += (match.points_1st || 0);
-       if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += (match.points_2nd || 0);
-       if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += (match.points_3rd || 0);
-       
-       // Player-level credit: each player gets their placement points
-       playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + (match.points_1st || 0);
-       playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + (match.points_2nd || 0);
-       playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + (match.points_3rd || 0);
+       if (ranked.length >= 3) {
+           if (ranked[0].total === ranked[1].total && ranked[1].total === ranked[2].total) {
+               const split = ((match.points_1st || 0) + (match.points_2nd || 0) + (match.points_3rd || 0)) / 3;
+               if (teamStandings[ranked[0].tid]) teamStandings[ranked[0].tid].points += split;
+               if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += split;
+               if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += split;
+               playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + split;
+               playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + split;
+               playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + split;
+           } else if (ranked[0].total === ranked[1].total) {
+               const split = ((match.points_1st || 0) + (match.points_2nd || 0)) / 2;
+               if (teamStandings[ranked[0].tid]) teamStandings[ranked[0].tid].points += split;
+               if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += split;
+               if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += (match.points_3rd || 0);
+               playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + split;
+               playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + split;
+               playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + (match.points_3rd || 0);
+           } else if (ranked[1].total === ranked[2].total) {
+               const split = ((match.points_2nd || 0) + (match.points_3rd || 0)) / 2;
+               if (teamStandings[ranked[0].tid]) teamStandings[ranked[0].tid].points += (match.points_1st || 0);
+               if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += split;
+               if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += split;
+               playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + (match.points_1st || 0);
+               playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + split;
+               playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + split;
+           } else {
+               if (teamStandings[ranked[0].tid]) teamStandings[ranked[0].tid].points += (match.points_1st || 0);
+               if (teamStandings[ranked[1].tid]) teamStandings[ranked[1].tid].points += (match.points_2nd || 0);
+               if (teamStandings[ranked[2].tid]) teamStandings[ranked[2].tid].points += (match.points_3rd || 0);
+               playerPoints[ranked[0].pid] = (playerPoints[ranked[0].pid] || 0) + (match.points_1st || 0);
+               playerPoints[ranked[1].pid] = (playerPoints[ranked[1].pid] || 0) + (match.points_2nd || 0);
+               playerPoints[ranked[2].pid] = (playerPoints[ranked[2].pid] || 0) + (match.points_3rd || 0);
+           }
+       }
        
        leaderText = `Leader: ${ranked[0].total} pts`;
-    } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
+    } else if (match.format === '2v1') {
+       let singleTeamId = teamA_players.length === 1 ? teamA_id : teamB_id;
+       let twosomeTeamId = teamA_players.length === 2 ? teamA_id : teamB_id;
+
+       if (singleTeamId === teamA_id && twosomeTeamId === teamB_id) {
+           // proper initialization
+       } else if (singleTeamId === teamB_id && twosomeTeamId === teamA_id) {
+           // proper initialization
+       } else {
+           singleTeamId = teamA_id;
+           twosomeTeamId = teamB_id;
+       }
+
+       if (bestBallTotals[singleTeamId] > bestBallTotals[twosomeTeamId]) {
+         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += (match.point_value || 0);
+         leaderText = `${teamStandings[singleTeamId]?.name || 'Single'} ${bestBallTotals[singleTeamId]} - ${bestBallTotals[twosomeTeamId]} (UP ${bestBallTotals[singleTeamId] - bestBallTotals[twosomeTeamId]})`;
+       } else if (bestBallTotals[twosomeTeamId] > bestBallTotals[singleTeamId]) {
+         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += (match.point_value || 0);
+         leaderText = `${teamStandings[twosomeTeamId]?.name || 'Twosome'} ${bestBallTotals[twosomeTeamId]} - ${bestBallTotals[singleTeamId]} (UP ${bestBallTotals[twosomeTeamId] - bestBallTotals[singleTeamId]})`;
+       } else {
+         const split = (match.point_value || 0) / 2;
+         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += split;
+         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += split;
+         leaderText = `Tied ${bestBallTotals[singleTeamId]} - ${bestBallTotals[twosomeTeamId]}`;
+       }
+     } else if (match.format === '1v1v1') {
+        const scores = [
+            { tid: teamA_id, total: bestBallTotals[teamA_id] || 0, pid: teamA_players[0] },
+            { tid: teamB_id, total: bestBallTotals[teamB_id] || 0, pid: teamB_players[0] },
+            { tid: teamC_id, total: bestBallTotals[teamC_id] || 0, pid: teamC_players[0] }
+        ].filter(x => x.tid).sort((a,b) => b.total - a.total);
+        
+        if (scores.length >= 3) {
+            if (scores[0].total === scores[1].total && scores[1].total === scores[2].total) {
+                // 3-way tie: split 1st and 2nd points (pts_1 + pts_2) / 3
+                const split = ((match.points_1st || 0) + (match.points_2nd || 0)) / 3;
+                if (teamStandings[scores[0].tid]) teamStandings[scores[0].tid].points += split;
+                if (teamStandings[scores[1].tid]) teamStandings[scores[1].tid].points += split;
+                if (teamStandings[scores[2].tid]) teamStandings[scores[2].tid].points += split;
+                playerPoints[scores[0].pid] = (playerPoints[scores[0].pid] || 0) + split;
+                playerPoints[scores[1].pid] = (playerPoints[scores[1].pid] || 0) + split;
+                playerPoints[scores[2].pid] = (playerPoints[scores[2].pid] || 0) + split;
+            } else if (scores[0].total === scores[1].total) {
+                // 2-way tie for 1st
+                const split = ((match.points_1st || 0) + (match.points_2nd || 0)) / 2;
+                if (teamStandings[scores[0].tid]) teamStandings[scores[0].tid].points += split;
+                if (teamStandings[scores[1].tid]) teamStandings[scores[1].tid].points += split;
+                playerPoints[scores[0].pid] = (playerPoints[scores[0].pid] || 0) + split;
+                playerPoints[scores[1].pid] = (playerPoints[scores[1].pid] || 0) + split;
+                // 3rd place gets 0
+            } else if (scores[1].total === scores[2].total) {
+                // 1st gets 1st points, 2nd and 3rd split 2nd points
+                if (teamStandings[scores[0].tid]) teamStandings[scores[0].tid].points += (match.points_1st || 0);
+                playerPoints[scores[0].pid] = (playerPoints[scores[0].pid] || 0) + (match.points_1st || 0);
+                
+                const split = (match.points_2nd || 0) / 2;
+                if (teamStandings[scores[1].tid]) teamStandings[scores[1].tid].points += split;
+                if (teamStandings[scores[2].tid]) teamStandings[scores[2].tid].points += split;
+                playerPoints[scores[1].pid] = (playerPoints[scores[1].pid] || 0) + split;
+                playerPoints[scores[2].pid] = (playerPoints[scores[2].pid] || 0) + split;
+            } else {
+                if (teamStandings[scores[0].tid]) teamStandings[scores[0].tid].points += (match.points_1st || 0);
+                if (teamStandings[scores[1].tid]) teamStandings[scores[1].tid].points += (match.points_2nd || 0);
+                playerPoints[scores[0].pid] = (playerPoints[scores[0].pid] || 0) + (match.points_1st || 0);
+                playerPoints[scores[1].pid] = (playerPoints[scores[1].pid] || 0) + (match.points_2nd || 0);
+            }
+            leaderText = `Leader: ${scores[0].total} pts`;
+        }
+     } else if (match.format === '1v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          if (teamStandings[teamA_id]) teamStandings[teamA_id].points += (match.point_value || 0);
          leaderText = `${teamStandings[teamA_id]?.name || 'Team A'} ${bestBallTotals[teamA_id] - bestBallTotals[teamB_id]} UP`;
@@ -181,9 +365,30 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
          tid: p.team_id,
          total: ninesTotals[p.player_id]
        })).sort((a,b) => b.total - a.total);
-       leaderColor = teamStandings[ranked[0].tid]?.color || '#4ade80';
-       leaderLogo = teamStandings[ranked[0].tid]?.logo || '';
-    } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
+       
+       if (ranked.length >= 2 && ranked[0].total === ranked[1].total) {
+           leaderColor = '#4ade80';
+           leaderLogo = '';
+       } else {
+           leaderColor = teamStandings[ranked[0].tid]?.color || '#4ade80';
+           leaderLogo = teamStandings[ranked[0].tid]?.logo || '';
+       }
+    } else if (match.format === '1v1v1') {
+        const scores = [
+            { tid: teamA_id, total: bestBallTotals[teamA_id] || 0 },
+            { tid: teamB_id, total: bestBallTotals[teamB_id] || 0 },
+            { tid: teamC_id, total: bestBallTotals[teamC_id] || 0 }
+        ].filter(x => x.tid).sort((a,b) => b.total - a.total);
+        if (scores.length > 0) {
+           if (scores.length >= 2 && scores[0].total === scores[1].total) {
+               leaderColor = '#4ade80';
+               leaderLogo = '';
+           } else {
+               leaderColor = teamStandings[scores[0].tid]?.color || '#4ade80';
+               leaderLogo = teamStandings[scores[0].tid]?.logo || '';
+           }
+        }
+     } else if (match.format === '1v1' || match.format === '2v1' || match.format === '2v2') {
        if (bestBallTotals[teamA_id] > bestBallTotals[teamB_id]) {
          leaderColor = teamStandings[teamA_id]?.color || '#4ade80';
          leaderLogo = teamStandings[teamA_id]?.logo || '';
@@ -209,6 +414,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       bestBallTotals,
       teamA_id,
       teamB_id,
+      teamC_id,
       isMatchComplete,
       rawScores: mScores,
       holeWinners,
