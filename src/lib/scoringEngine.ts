@@ -178,7 +178,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
             if (toPar === -1) return 3;
             if (toPar === 0) return 1;
             if (toPar === 1) return 0;
-            if (toPar === 2) return -1;
+            if (toPar === 2) return -2;
             if (toPar >= 3) return -2;
             return 0;
         };
