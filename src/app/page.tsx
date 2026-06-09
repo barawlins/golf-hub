@@ -53,7 +53,18 @@ export default function LoginPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-neon font-mono">LOADING PLAYERS...</div>;
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-6">
+        <div className="animate-pulse">
+          <img
+            src="/trip-logo.jpg"
+            alt="MCXVI"
+            className="w-56 h-56 object-contain opacity-80 mix-blend-luminosity"
+          />
+        </div>
+        <p className="text-neon font-mono text-xs tracking-[0.4em] uppercase opacity-70 animate-pulse">Loading...</p>
+      </div>
+    );
   }
 
   if (fetchError) {
@@ -73,7 +84,14 @@ export default function LoginPage() {
       
       <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
         
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center mb-2">
+            <img
+              src="/trip-logo.jpg"
+              alt="MCXVI Trip Logo"
+              className="w-44 h-44 object-contain opacity-90 mix-blend-luminosity drop-shadow-[0_0_30px_rgba(74,222,128,0.15)]"
+            />
+          </div>
           <h1 className="text-5xl font-black tracking-tighter text-white">
             MC<span className="text-neon">XVI</span>
           </h1>

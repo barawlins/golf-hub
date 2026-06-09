@@ -682,9 +682,16 @@ export default function HubPage() {
       <header className="px-6 py-8 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter text-white">
-              MC<span className="text-neon">XVI</span>
-            </h1>
+            <div className="flex items-center gap-3">
+              <img
+                src="/trip-logo.jpg"
+                alt="MCXVI"
+                className="w-10 h-10 object-contain opacity-80 mix-blend-luminosity"
+              />
+              <h1 className="text-3xl font-black tracking-tighter text-white">
+                MC<span className="text-neon">XVI</span>
+              </h1>
+            </div>
             <div className="mt-3 flex items-center gap-3">
               {/* Profile Photo Uploader */}
               <label className="relative group cursor-pointer w-10 h-10 rounded-full overflow-hidden border-2 border-slate-700 hover:border-neon transition-colors flex-shrink-0">
@@ -941,6 +948,17 @@ export default function HubPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {matchResults.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 opacity-40">
+                <img
+                  src="/trip-logo.jpg"
+                  alt="No matches"
+                  className="w-40 h-40 object-contain mix-blend-luminosity"
+                />
+                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">No Active Matches</p>
               </div>
             )}
             
