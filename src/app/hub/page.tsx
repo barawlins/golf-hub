@@ -35,6 +35,7 @@ export default function HubPage() {
   // Leaderboard State
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [historicalMatchResults, setHistoricalMatchResults] = useState<any[]>([]);
   const [playerPointsMap, setPlayerPointsMap] = useState<Record<string, number>>({});
 
   // Admin Panel State
@@ -137,6 +138,10 @@ export default function HubPage() {
         const allMatches = [...activeMatches, ...(completedMatchesData || [])];
         const allResults = calculateLeaderboard(allMatches, participants, scores, teams);
         setPlayerPointsMap(allResults.playerPoints);
+        
+        // Calculate Historical matches for display
+        const histResults = calculateLeaderboard(completedMatchesData || [], participants, scores, teams);
+        setHistoricalMatchResults(histResults.matchDetails.sort((a,b) => new Date(b.match.created_at).getTime() - new Date(a.match.created_at).getTime()));
         
         // Add permanent base points
         results.standings.forEach(s => {
@@ -668,7 +673,7 @@ export default function HubPage() {
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-neon selection:text-slate-900">
       
       {toast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 border border-neon/50 text-neon px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(var(--color-neon),0.3)] z-50 animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-slate-800 border border-neon/50 text-neon px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(var(--color-neon),0.3)] z-[100] animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
           {toast}
         </div>
@@ -927,6 +932,104 @@ export default function HubPage() {
                         >
                           Cancel Match
                         </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Historical Matches Summaries */}
+            {historicalMatchResults.length > 0 && (
+              <div className="space-y-4 mt-12 opacity-80">
+                <h2 className="text-xl font-bold text-slate-400 flex items-center gap-2">
+                  <span className="w-2 h-6 bg-slate-600 rounded-full inline-block"></span>
+                  Historical Matches
+                </h2>
+                {historicalMatchResults.map(m => (
+                  <div key={m.match.id} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 relative overflow-hidden">
+                    {/* Leading Team Watermark */}
+                    {m.leaderLogo && !m.leaderText.includes('Tied') && !m.leaderText.includes('Square') && (
+                      <div 
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 opacity-[0.25] brightness-150 pointer-events-none mix-blend-screen"
+                        style={{ backgroundImage: `url(${m.leaderLogo})`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+                      />
+                    )}
+                    
+                    <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-3 relative z-10">
+                      <span className="text-xs text-slate-400 font-bold uppercase">{({'nines': 'Nines (5-3-1)', '1v1': '1v1 Match Play', '2v1': '2v1 Stableford', '1v1v1': '1v1v1 Stableford', '2v2': '2v2 Best Ball'} as any)[m.format] || m.format}</span>
+                      <span className="text-xs font-black uppercase tracking-wide" style={{ color: boostColor(m.leaderColor) }}>{m.leaderText}</span>
+                    </div>
+                    <div className="space-y-2 relative z-10">
+                      {m.participants.map((p: any) => (
+                        <div key={p.player_id} className="flex justify-between text-sm items-center">
+                          <div className="flex items-center gap-2">
+                            {p.teamLogo ? (
+                              <img src={p.teamLogo} alt="" className="w-5 h-5 object-contain" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
+                            )}
+                            <span className="font-bold">{p.players?.name}</span>
+                          </div>
+                          {m.format === 'nines' && <span className="font-bold text-white">{m.ninesTotals?.[p.player_id] || 0} pts</span>}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 text-center border-t border-slate-700/50 pt-3 relative z-10">
+                      <button 
+                        onClick={() => setExpandedMatchId(expandedMatchId === m.match.id ? null : m.match.id)}
+                        className="text-xs font-bold text-neon uppercase tracking-widest hover:text-white transition-colors"
+                      >
+                        {expandedMatchId === m.match.id ? 'Hide Full Scorecard' : 'View Full Scorecard'}
+                      </button>
+                    </div>
+
+                    {expandedMatchId === m.match.id && (
+                      <div className="mt-4 bg-slate-900 rounded-xl overflow-hidden overflow-x-auto relative z-10 border border-slate-700">
+                        <table className="w-full text-xs text-left min-w-[500px]">
+                          <thead className="bg-slate-800 text-slate-400">
+                            <tr>
+                              <th className="px-3 py-2">Hole</th>
+                              {[...Array(18)].map((_, i) => (
+                                <th key={i} className="px-2 py-2 text-center w-6">{i + 1}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800">
+                            {m.participants.map((p: any) => (
+                              <tr key={p.player_id}>
+                                <td className="px-3 py-2 font-bold whitespace-nowrap">{p.players?.name}</td>
+                                {[...Array(18)].map((_, i) => {
+                                  const s = m.holeScores?.[p.player_id]?.[i + 1];
+                                  const hWinnerIds = m.holeWinners?.[i + 1] || [];
+                                  const isWinner = hWinnerIds.includes(p.player_id);
+                                  return (
+                                    <td key={i} className="px-2 py-2 text-center">
+                                      {s !== undefined ? (
+                                        <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${isWinner ? 'bg-neon text-slate-900 font-bold' : 'text-slate-300'}`}>
+                                          {s}
+                                        </div>
+                                      ) : '-'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    
+                    {currentPlayer.role === 'commissioner' && (
+                      <div className="mt-4 pt-3 border-t border-slate-700/50 text-center animate-in fade-in zoom-in duration-300 relative z-10">
+                         <button 
+                           onClick={() => handleRevertMatch(m.match.id)}
+                           disabled={isSaving}
+                           className="bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white text-red-400 text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-xl w-full transition-all disabled:opacity-50"
+                         >
+                           {isSaving ? 'Reverting...' : '⚠️ Revert Match to Edit'}
+                         </button>
                       </div>
                     )}
                   </div>
@@ -1282,29 +1385,23 @@ export default function HubPage() {
               </div>
             </div>
 
-              {/* Completed Matches Revert Options */}
-              {completedMatches.length > 0 && (
-                <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-5 mt-8 border-t border-red-500/20">
-                  <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    Danger Zone: Revert Matches
-                  </h3>
-                  <div className="space-y-3">
-                    {completedMatches.map(m => (
-                      <div key={m.id} className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
-                        <span className="text-sm font-medium text-slate-300 uppercase">{m.format} Match</span>
-                        <button 
-                          onClick={() => handleRevertMatch(m.id)}
-                          disabled={isSaving}
-                          className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                        >
-                          Revert Match
-                        </button>
+            {/* Historical Matches List in Admin */}
+            {historicalMatchResults.length > 0 && (
+              <div className="space-y-4 mt-8">
+                <h2 className="text-xl font-bold text-white px-1">Match History</h2>
+                <div className="space-y-3">
+                  {historicalMatchResults.map(m => (
+                    <div key={m.match.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-bold">{(m.format || '').toUpperCase()} Match</p>
+                        <p className="text-xs text-slate-400">{new Date(m.match.created_at).toLocaleDateString()}</p>
                       </div>
-                    ))}
-                  </div>
+                      <button onClick={() => handleRevertMatch(m.match.id)} className="text-red-500 text-xs font-bold hover:underline">Revert</button>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
           </section>
         )}
 
