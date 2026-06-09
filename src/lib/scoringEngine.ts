@@ -20,6 +20,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
   const playerPoints: Record<string, number> = {};
 
   const matchDetails = matches.map(match => {
+    const beforePoints = { ...playerPoints };
     const mParts = participants.filter(p => p.match_id === match.id);
     const mScores = scores.filter(s => s.match_id === match.id);
 
@@ -398,6 +399,11 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
        }
     }
 
+    const matchPoints: Record<string, number> = {};
+    mParts.forEach(p => {
+       matchPoints[p.player_id] = (playerPoints[p.player_id] || 0) - (beforePoints[p.player_id] || 0);
+    });
+
     const enrichedParticipants = mParts.map(p => {
        const team = teams.find(t => t.id === p.team_id);
        return { ...p, teamColor: team?.color_hex || '#ffffff', teamLogo: team?.logo_url || '' };
@@ -410,6 +416,7 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
       leaderText,
       leaderColor,
       leaderLogo,
+      matchPoints,
       ninesTotals,
       bestBallTotals,
       teamA_id,

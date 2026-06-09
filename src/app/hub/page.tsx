@@ -822,7 +822,12 @@ export default function HubPage() {
                             ) : (
                               <div className="w-5 h-5 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
                             )}
-                            <span className="font-bold text-base" style={{ color: boostColor(p.teamColor) }}>{p.players?.name || 'Unknown'}</span>
+                            <span className="font-bold text-base" style={{ color: boostColor(p.teamColor) }}>
+                              {p.players?.name || 'Unknown'}
+                              {m.matchPoints && m.matchPoints[p.player_id] > 0 && (
+                                <span className="text-slate-400 text-xs ml-2 font-normal">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
+                              )}
+                            </span>
                           </div>
                           <span className="text-white font-black bg-slate-900 px-3 py-1 rounded-lg border border-slate-700">
                             {m.format === 'nines' ? `${m.ninesTotals[p.player_id]} pts` : (() => {
@@ -969,9 +974,20 @@ export default function HubPage() {
                             ) : (
                               <div className="w-5 h-5 rounded-full" style={{ backgroundColor: p.teamColor }}></div>
                             )}
-                            <span className="font-bold">{p.players?.name}</span>
+                            <span className="font-bold">
+                              {p.players?.name}
+                              {m.matchPoints && m.matchPoints[p.player_id] > 0 && (
+                                <span className="text-slate-400 text-xs ml-2 font-normal">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
+                              )}
+                            </span>
                           </div>
-                          {m.format === 'nines' && <span className="font-bold text-white">{m.ninesTotals?.[p.player_id] || 0} pts</span>}
+                          <span className="text-white font-black bg-slate-900/50 px-3 py-1 rounded-lg border border-slate-700/50">
+                            {m.format === 'nines' ? `${m.ninesTotals?.[p.player_id] || 0} pts` : (() => {
+                              const indiv = m.playerHolesWon?.[p.player_id] ?? 0;
+                              const indivDisplay = indiv % 1 === 0 ? indiv : indiv.toFixed(1);
+                              return `${indivDisplay}`;
+                            })()}
+                          </span>
                         </div>
                       ))}
                     </div>
