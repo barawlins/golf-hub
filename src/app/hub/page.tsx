@@ -825,7 +825,7 @@ export default function HubPage() {
                             <span className="font-bold text-base" style={{ color: boostColor(p.teamColor) }}>
                               {p.players?.name || 'Unknown'}
                               {m.matchPoints && m.matchPoints[p.player_id] > 0 && (
-                                <span className="text-slate-400 text-xs ml-2 font-normal">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
+                                <span className="text-white text-xs ml-2 font-bold">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
                               )}
                             </span>
                           </div>
@@ -977,7 +977,7 @@ export default function HubPage() {
                             <span className="font-bold">
                               {p.players?.name}
                               {m.matchPoints && m.matchPoints[p.player_id] > 0 && (
-                                <span className="text-slate-400 text-xs ml-2 font-normal">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
+                                <span className="text-white text-xs ml-2 font-bold">(+{m.matchPoints[p.player_id].toFixed(1).replace(/\.0$/, '')} pts)</span>
                               )}
                             </span>
                           </div>
