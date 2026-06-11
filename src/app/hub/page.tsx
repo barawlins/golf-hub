@@ -483,13 +483,12 @@ export default function HubPage() {
           let twosomeTeamId = teamA_size === 2 ? matchResult.teamA_id : matchResult.teamB_id;
           
           if (matchResult.bestBallTotals[singleTeamId] > matchResult.bestBallTotals[twosomeTeamId]) {
-            await deductPoints(singleTeamId, matchResult.match.point_value || 0);
+            await deductPoints(singleTeamId, 4);
           } else if (matchResult.bestBallTotals[twosomeTeamId] > matchResult.bestBallTotals[singleTeamId]) {
-            await deductPoints(twosomeTeamId, matchResult.match.point_value || 0);
+            await deductPoints(twosomeTeamId, 3);
           } else {
-            const split = (matchResult.match.point_value || 0) / 2;
-            await deductPoints(singleTeamId, split);
-            await deductPoints(twosomeTeamId, split);
+            await deductPoints(singleTeamId, 2);
+            await deductPoints(twosomeTeamId, 2);
           }
         } else if (matchResult.format === '1v1v1') {
           const scores = [

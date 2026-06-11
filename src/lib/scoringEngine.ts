@@ -282,15 +282,17 @@ export function calculateLeaderboard(matches: any[], participants: any[], scores
        }
 
        if (bestBallTotals[singleTeamId] > bestBallTotals[twosomeTeamId]) {
-         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += (match.point_value || 0);
+         // Single wins: their team earns 4 points
+         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += 4;
          leaderText = `${teamStandings[singleTeamId]?.name || 'Single'} ${bestBallTotals[singleTeamId]} - ${bestBallTotals[twosomeTeamId]} (UP ${bestBallTotals[singleTeamId] - bestBallTotals[twosomeTeamId]})`;
        } else if (bestBallTotals[twosomeTeamId] > bestBallTotals[singleTeamId]) {
-         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += (match.point_value || 0);
+         // Twosome wins: their team earns 3 points
+         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += 3;
          leaderText = `${teamStandings[twosomeTeamId]?.name || 'Twosome'} ${bestBallTotals[twosomeTeamId]} - ${bestBallTotals[singleTeamId]} (UP ${bestBallTotals[twosomeTeamId] - bestBallTotals[singleTeamId]})`;
        } else {
-         const split = (match.point_value || 0) / 2;
-         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += split;
-         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += split;
+         // Tied: both teams earn 2 points
+         if (teamStandings[singleTeamId]) teamStandings[singleTeamId].points += 2;
+         if (teamStandings[twosomeTeamId]) teamStandings[twosomeTeamId].points += 2;
          leaderText = `Tied ${bestBallTotals[singleTeamId]} - ${bestBallTotals[twosomeTeamId]}`;
        }
      } else if (match.format === '1v1v1') {
