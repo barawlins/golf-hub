@@ -101,10 +101,10 @@ export default function HubPage() {
       // Get the match participant row for the current player
       const { data: participant } = await supabase
         .from('match_participants')
-        .select('match_id, matches(*)')
+        .select('match_id, matches!inner(*)')
         .eq('player_id', currentPlayer.id)
         .eq('matches.status', 'in_progress')
-        .single();
+        .maybeSingle();
         
       if (participant && participant.matches) {
         const matchData = participant.matches as any;
